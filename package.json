@@ -1,0 +1,11 @@
+{
+  "name": "poe2-crafting-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "POE2 crafting simulator: offline UI prototype with clearly labeled demo rules",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "dev": "node scripts/server.mjs"
+  }
+}

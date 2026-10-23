@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POE2 Crafting Simulator — Prototype</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="top">
+    <div><span class="eyebrow">OFFLINE PROTOTYPE • DEMO RULES</span><h1>POE2 제작 시뮬레이터</h1><p>오브 클릭 즉시 제작 · 제작 로그 · 누적 재료 소모</p></div>
+    <button id="reset" class="secondary">새 제작 시작</button>
+  </header>
+  <div id="disclaimer" class="warning"></div>
+  <main class="layout">
+    <section class="panel side">
+      <h2>① 시작 아이템 설정</h2>
+      <label for="base">베이스</label><select id="base"></select>
+      <label for="rarity">등급</label><select id="rarity"><option value="normal">일반</option><option value="magic">마법</option><option value="rare">희귀</option></select>
+      <label for="level">아이템 레벨</label><input id="level" type="number" min="1" max="100" value="82">
+      <h3>기존 속성 설정</h3>
+      <p class="subtle">시작 상태에서 입력한 속성은 재료 사용량에 포함하지 않습니다.</p>
+      <select id="modifier"></select>
+      <label class="inline"><input id="fractured" type="checkbox"> 분열된 속성으로 추가</label>
+      <button id="add-mod" class="secondary full">+ 기존 속성 추가</button>
+      <div id="setup-hint" class="hint">첫 오브를 사용하면 시작 아이템 설정이 잠깁니다.</div>
+      <hr>
+      <h2>목표 속성</h2>
+      <p class="subtle">자동 제작은 후속 버전에서 구현합니다. 현재는 직접 오브를 클릭해 제작하세요.</p>
+      <div class="goal">이동 속도 35% · 최대 생명력 · 화염/냉기/번개 저항</div>
+    </section>
+
+    <section class="panel center">
+      <h2>② 현재 아이템</h2>
+      <div class="item-card">
+        <div class="item-title"><strong id="item-name">단검발 신발</strong><span id="rarity-label" class="rarity">마법</span></div>
+        <p id="base-stats" class="subtle"></p>
+        <div class="mod-section"><h3>접두어 <span id="prefix-count">0/1</span></h3><div id="prefix-list"></div></div>
+        <div class="mod-section"><h3>접미어 <span id="suffix-count">1/1</span></h3><div id="suffix-list"></div></div>
+      </div>
+      <h2>③ 제작 도구함 <small>클릭 즉시 사용</small></h2>
+      <div id="orb-buttons" class="tools"></div>
+      <h3>징조 <small>활성화 후 대상 오브 사용 시 소모</small></h3>
+      <div id="omen-buttons" class="tools omens"></div>
+      <div id="notice" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel side">
+      <h2>④ 누적 재료 사용</h2><div id="usage"><p class="subtle">아직 사용한 재료가 없습니다.</p></div>
+      <hr><h2>⑤ 제작 로그</h2>
+      <p class="subtle">재료 미소모 오류도 원인과 함께 기록합니다.</p>
+      <ol id="logs" class="logs"></ol>
+    </section>
+  </main>
+  <footer>시연 데이터와 균등한 임시 가중치만 사용합니다. 실제 POE2 확률이라고 해석하면 안 됩니다.</footer>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
