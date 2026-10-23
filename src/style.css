@@ -12,3 +12,8 @@ button{background:#335ba0;color:white;border:1px solid #5887d8;cursor:pointer;bo
 
 .top-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}.goal-row{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--stroke);padding:6px 0}.goal-row:last-child{border-bottom:none}.goal-row span.achieved{color:#85d7ae}.goal-row button{white-space:nowrap}#goal-progress{font-weight:700;color:#bdd3ff}
 @media(max-width:700px){.top{flex-wrap:wrap}.top-actions{justify-content:flex-start}.top-actions button{font-size:11px}}
+
+/* PoB2 base catalogue picker */
+input[type=search]{background:var(--raised);color:var(--text);border:1px solid var(--stroke);padding:10px 11px;border-radius:7px;width:100%;font:inherit}
+#base-count{color:#a2ceff}#craft-support-note{background:#26344a;border-left:3px solid #7398d1;border-radius:4px;padding:8px 10px;line-height:1.45;word-break:keep-all}
+#base-stats{line-height:1.7;overflow-wrap:anywhere}.item-title strong{overflow-wrap:anywhere}

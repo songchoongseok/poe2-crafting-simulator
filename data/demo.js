@@ -1,8 +1,26 @@
 // DEMO DATA ONLY. These are NOT verified official POE2 mod weights or recipes.
 // Never relabel a demonstration probability as an in-game probability.
+import { armourBases } from './pob2-armour.js';
+import { weaponBasesA } from './pob2-weapons-a.js';
+import { weaponBasesB } from './pob2-weapons-b.js';
+import { accessoryBases } from './pob2-accessories.js';
+
+// Some PoB2 entries share the same English name but differ in implicit or base stats.
+ // Keep every distinct source entry, giving repeated names stable per-source variant IDs.
+const rawBases = [...armourBases, ...weaponBasesA, ...weaponBasesB, ...accessoryBases];
+const nameCounts = rawBases.reduce((all, b) => (all[b.id] = (all[b.id] || 0) + 1, all), Object.create(null));
+const seenVariants = Object.create(null);
 export const bases = [
-  { id: 'daggerfoot', name: '단검발 신발', type: 'boots', baseEvasion: 140, baseES: 43 },
-  { id: 'custom_boots', name: '사용자 지정 신발', type: 'boots', baseEvasion: null, baseES: null }
+  ...rawBases.map(b => {
+    if (nameCounts[b.id] === 1) return b;
+    const variant = (seenVariants[b.id] || 0) + 1;
+    seenVariants[b.id] = variant;
+    return { ...b, id: `${b.id}#variant-${variant}`,
+      name: `${b.name} (변형 ${variant})`, variant, variantCount: nameCounts[b.id] };
+  }),
+  { id:'custom_boots', name:'사용자 지정 신발 (시연)', sourceName:'Custom Boots (DEMO)',
+    group:'방어구',category:'boots',subType:'Evasion/Energy Shield',
+    requiredLevel:0,requirements:{},armour:{} }
 ];
 
 export const modifiers = [

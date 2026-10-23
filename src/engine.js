@@ -1,4 +1,5 @@
 import { bases, modifiers, orbs, omens } from '../data/demo.js';
+import { supportsDemoCrafting } from './catalogue.js';
 
 export const modById = Object.fromEntries(modifiers.map(m => [m.id, m]));
 export const orbById = Object.fromEntries(orbs.map(o => [o.id, o]));
@@ -15,6 +16,7 @@ export const makeInitial = () => ({
 
 export function validateStart({ baseId, itemLevel, rarity, mods }) {
   if (!baseById[baseId]) return '지원하지 않는 베이스입니다.';
+  if (mods.length && !supportsDemoCrafting(baseById[baseId])) return '이 베이스는 아직 속성 데이터를 연결하지 않았으므로 기존 속성을 설정할 수 없습니다.';
   if (!Number.isInteger(itemLevel) || itemLevel < 1 || itemLevel > 100) return '아이템 레벨은 1~100 정수로 설정해 주세요.';
   if (!Object.hasOwn(SLOT_LIMITS, rarity)) return '존재하지 않는 아이템 등급입니다.';
   if (rarity === 'normal' && mods.length) return '일반 아이템에는 일반 속성을 입력할 수 없습니다.';
@@ -77,6 +79,7 @@ export function applyOrb(state, orbId, rng = Math.random) {
   if (!orb) return fail(state, orbId, '알 수 없는 오브입니다.');
   const valid = validateStart(state);
   if (valid) return fail(state, orb.name, `현재 아이템이 유효하지 않습니다: ${valid}`);
+  if (!supportsDemoCrafting(baseById[state.baseId])) return fail(state, orb.name, '이 베이스는 PoB2 목록에서 선택할 수 있지만 장비별 속성 풀이 미검증이므로 제작을 차단했습니다. 현재 시연은 회피/에너지 보호막 신발에만 적용됩니다.');
   const mods = clone(state.mods);
   let nextRarity = state.rarity;
   let added = null, removed = null, omenUsed = null;
