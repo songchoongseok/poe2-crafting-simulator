@@ -53,3 +53,21 @@ input[type=search]{background:var(--raised);color:var(--text);border:1px solid v
 #omen-description,#abyss-description{min-height:50px;border-left:2px solid var(--stroke);padding-left:9px;white-space:pre-line;line-height:1.5}
 .tools.omens{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:700px){.craft-actions button{font-size:12px}}
+
+
+/* POE2 rarity: normal white/grey, magic blue, rare gold. Geometry unchanged. */
+.item-card[data-rarity="normal"]{border:3px solid #d2d7e1;box-shadow:0 0 0 1px #6b7584;background:#171d28}
+.item-card[data-rarity="magic"]{border:3px solid #669bff;box-shadow:0 0 18px #386bdd35;background:#101d35}
+.item-card[data-rarity="rare"]{border:3px solid #e4be6a;box-shadow:0 0 18px #c8942a35;background:#231c17}
+.item-card[data-rarity="normal"] .item-title{color:#e3e7ee}
+.item-card[data-rarity="magic"] .item-title{color:#98bfff}
+.item-card[data-rarity="rare"] .item-title{color:#f7d88e}
+.item-card[data-rarity="normal"] .rarity{color:#0d1723;background:#cdd3dd}
+.item-card[data-rarity="magic"] .rarity{color:#f1f6ff;background:#315dca}
+.item-card[data-rarity="rare"] .rarity{color:#271903;background:#e5c079}
+.item-card.has-desecration .abyss-tag{color:#c6a4ff}
+.abyss-reveal{display:flex;flex-direction:column;gap:7px;margin-top:11px}
+.abyss-reveal:not(:empty){background:#241c35;border:1px solid #845cba;border-radius:9px;padding:12px}
+.abyss-reveal p{color:#d3c5ec;font-size:12px;margin:0}
+.abyss-reveal button{background:#35264e;border:1px solid #8c73bd;text-align:left;white-space:normal;overflow-wrap:anywhere;font-size:12px;padding:11px}
+#abyss-reroll:not([hidden]){margin-top:8px}
