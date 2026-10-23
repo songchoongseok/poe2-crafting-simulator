@@ -100,6 +100,6 @@ test('훼손 전후 상태와 뼈 사용량이 세션을 저장한 후에도 유
 });
 test('훼손 전용 속성 풀은 지정한 베이스의 한국어 옵션으로 구성된다',()=>{
  const b=baseOf('ring'),s=applyBone(ready(b),b,'preserved-collarbone',()=>0).state;
- assert.ok(s.desecration.offers.every(id=>id.startsWith('Ring::abyss::')));
- assert.ok(s.desecration.offers.every(id=>/[가-힣]/.test(abyssMods[id].effect)));
+ assert.ok(s.desecration.offers.every(id=>id.startsWith('Ring::')));
+ assert.ok(s.desecration.offers.every(id=>/[가-힣]/.test(modById[id].effect)));
 });
