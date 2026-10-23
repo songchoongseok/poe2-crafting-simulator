@@ -1,8 +1,15 @@
 // DEMO DATA ONLY. These are NOT verified official POE2 mod weights or recipes.
 // Never relabel a demonstration probability as an in-game probability.
+import { armourBases } from './pob2-armour.js';
+import { weaponBasesA } from './pob2-weapons-a.js';
+import { weaponBasesB } from './pob2-weapons-b.js';
+import { accessoryBases } from './pob2-accessories.js';
+
 export const bases = [
-  { id: 'daggerfoot', name: '단검발 신발', type: 'boots', baseEvasion: 140, baseES: 43 },
-  { id: 'custom_boots', name: '사용자 지정 신발', type: 'boots', baseEvasion: null, baseES: null }
+  ...armourBases, ...weaponBasesA, ...weaponBasesB, ...accessoryBases,
+  { id:'custom_boots', name:'사용자 지정 신발 (시연)', sourceName:'Custom Boots (DEMO)',
+    group:'방어구',category:'boots',subType:'Evasion/Energy Shield',
+    requiredLevel:0,requirements:{},armour:{} }
 ];
 
 export const modifiers = [
