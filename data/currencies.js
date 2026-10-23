@@ -17,5 +17,10 @@ export const currencies = [
   {id:'annul',name:'소멸의 오브',action:'annul'},
   {id:'fracture',name:'분열의 오브',action:'fracture'},
   {id:'divine',name:'신성한 오브',action:'divine'},
-  {id:'vaal',name:'바알 오브',action:'vaal'}
+  {id:'vaal',name:'바알 오브',action:'vaal'},
+  {id:'whetstone',name:'대장장이의 숫돌',action:'quality',qualityCategory:'martial'},
+  {id:'etcher',name:'신비학자의 식각기',action:'quality',qualityCategory:'caster'},
+  {id:'armour-scrap',name:'방어구 장인의 고철',action:'quality',qualityCategory:'armour'},
+  {id:'artificer',name:'숙련공의 오브',action:'socket'},
+  {id:'mirror',name:'칼란드라의 거울',action:'mirror'}
 ];

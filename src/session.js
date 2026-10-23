@@ -1,6 +1,7 @@
 import { makeInitial, validateStart, modById, orbById, omenById, setGoals } from './engine.js';
 import { boneById,abyssMods,hiddenMods } from './abyss.js';
 import { essenceById } from './essences.js';
+import { catalysts } from '../data/catalysts.js';
 export const SESSION_VERSION = 1;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const counter = n => Number.isSafeInteger(n) && n >= 0 && n <= 100000000;
@@ -8,12 +9,14 @@ const restoreMod=m=>({id:m.id,fractured:m.fractured,
   ...(m.valueText===undefined?{}:{valueText:m.valueText}),
   ...(m.desecrated===undefined?{}:{desecrated:m.desecrated}),
   ...(m.unrevealed===undefined?{}:{unrevealed:m.unrevealed}),
-  ...(m.kind===undefined?{}:{kind:m.kind})});
+  ...(m.kind===undefined?{}:{kind:m.kind}),
+  ...(m.sanctificationMultiplier===undefined?{}:{sanctificationMultiplier:m.sanctificationMultiplier})});
 const invalidMod=m=>!object(m)||typeof m.id!=='string'||!Object.hasOwn(modById,m.id)||
   typeof m.fractured!=='boolean'||(m.valueText!==undefined&&
   (typeof m.valueText!=='string'||m.valueText.length>1000))||
   (m.desecrated!==undefined&&typeof m.desecrated!=='boolean')||
   (m.unrevealed!==undefined&&typeof m.unrevealed!=='boolean')||
+  (m.sanctificationMultiplier!==undefined&&(!Number.isFinite(m.sanctificationMultiplier)||m.sanctificationMultiplier<.78||m.sanctificationMultiplier>1.22))||
   (m.kind!==undefined&&!['prefix','suffix'].includes(m.kind));
 function restoreDesecration(d){
   if(d===null||d===undefined)return null;
@@ -43,17 +46,29 @@ export function parseSession(text) {
   if (!object(payload)||payload.schema!=='poe2-craft-session'||payload.version!==SESSION_VERSION||!object(payload.state)) throw Error('지원하지 않는 세션 형식입니다.');
   const raw=payload.state;
   if (!Array.isArray(raw.mods)||raw.mods.length>6||raw.mods.some(invalidMod)) throw Error('잘못된 속성 목록입니다.');
+  if(raw.mirroredCopies!==undefined&&(!Array.isArray(raw.mirroredCopies)||raw.mirroredCopies.length>100||
+    raw.mirroredCopies.some(c=>!object(c)||c.mirrored!==true||c.baseId!==raw.baseId||
+      !Array.isArray(c.mods)||c.mods.length>6||c.mods.some(invalidMod))))
+    throw Error('복제본 목록이 잘못됐습니다.');
+  if(raw.prediction!==undefined&&raw.prediction!==null&&(!object(raw.prediction)||
+    !Object.hasOwn(orbById,raw.prediction.orbId)||raw.prediction.orbId==='mirror'||
+    !Number.isInteger(raw.prediction.seed)||raw.prediction.seed<0||raw.prediction.seed>=4294967296||
+    typeof raw.prediction.detail!=='string'||raw.prediction.detail.length>1000))
+    throw Error('예측된 화폐 결과가 잘못됐습니다.');
   const state={...makeInitial(),baseId:raw.baseId,itemLevel:raw.itemLevel,rarity:raw.rarity,
     mods:raw.mods.map(restoreMod),goals:[],desecration:restoreDesecration(raw.desecration),
     desecrations:restoreBatch(raw.desecrations),corrupted:Boolean(raw.corrupted),
     destroyed:Boolean(raw.destroyed),unique:Boolean(raw.unique),sanctified:Boolean(raw.sanctified),
     vaalImplicit:Boolean(raw.vaalImplicit),implicitRoll:typeof raw.implicitRoll==='number'?raw.implicitRoll:null,
     catalystType:raw.catalystType??null,catalystQuality:raw.catalystQuality??0,
+    quality:raw.quality??0,sockets:raw.sockets??0,
+    mirroredCopies:raw.mirroredCopies??[],prediction:raw.prediction??null,
+    vaalMagnitude:raw.vaalMagnitude??null,
     omenId:raw.omenId,locked:raw.locked,attempts:raw.attempts,notice:'세션을 불러왔습니다.'};
   const invalid=validateStart(state); if(invalid)throw Error(invalid);
   if (state.omenId!==null&&!Object.hasOwn(omenById,state.omenId))throw Error('잘못된 징조입니다.');
   if(typeof state.locked!=='boolean'||!counter(state.attempts))throw Error('제작 진행 상태가 잘못됐습니다.');
-  if(!object(raw.usage)||Object.entries(raw.usage).some(([id,n])=>!(Object.hasOwn(orbById,id)||Object.hasOwn(omenById,id)||Object.hasOwn(boneById,id)||Object.hasOwn(essenceById,id))||!counter(n)))throw Error('사용량이 잘못됐습니다.');
+  if(!object(raw.usage)||Object.entries(raw.usage).some(([id,n])=>!(Object.hasOwn(orbById,id)||Object.hasOwn(omenById,id)||Object.hasOwn(boneById,id)||Object.hasOwn(essenceById,id)||catalysts.some(x=>x.id===id)||id==='hinekoras-lock')||!counter(n)))throw Error('사용량이 잘못됐습니다.');
   if(!Array.isArray(raw.log)||raw.log.length>10000||raw.log.some(e=>!object(e)||!counter(e.order)||typeof e.success!=='boolean'||typeof e.action!=='string'||e.action.length>100||typeof e.detail!=='string'||e.detail.length>1000||
       (e.omen!=null&&(typeof e.omen!=='string'||e.omen.length>100))||
       (e.stateAfter!==undefined&&(!object(e.stateAfter)||!['normal','magic','rare','unique'].includes(e.stateAfter.rarity)||!Array.isArray(e.stateAfter.mods)||e.stateAfter.mods.length>6||e.stateAfter.mods.some(invalidMod))))) throw Error('제작 로그가 잘못됐습니다.');

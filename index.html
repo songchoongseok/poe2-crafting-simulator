@@ -22,11 +22,13 @@
       <div id="base-count" class="hint"></div>
       <p class="subtle">게임 한국어 데이터로 아이템명을 표시합니다. 확인되지 않은 이름은 원문 그대로 유지합니다.</p>
       <label for="rarity">등급</label><select id="rarity"><option value="normal">일반</option><option value="magic">마법</option><option value="rare">희귀</option><option value="unique" hidden>고유</option></select>
-      <label for="level">아이템 레벨 · 베이스 선택 시 자동 설정</label><input id="level" type="number" value="80" readonly aria-readonly="true">
-      <p class="subtle">베이스의 장착 요구 레벨과 실제 드롭 아이템 레벨은 다릅니다. 지금은 화면 시연을 위해 장착 요구 레벨로 아이템 레벨을 고정합니다.</p>
+      <label for="level">아이템 레벨 (1~100)</label><input id="level" type="number" min="1" max="100" value="80">
+      <p class="subtle">베이스를 선택하면 요구 레벨을 기본값으로 넣지만, 실제 획득한 장비의 아이템 레벨로 수정할 수 있습니다.</p>
+      <label for="initial-quality">기존 장비 퀄리티 (0~30%)</label><input id="initial-quality" type="number" min="0" max="30" value="0">
+      <label for="initial-sockets">기존 증강물 홈</label><input id="initial-sockets" type="number" min="0" max="3" value="0">
       <h3>기폭제 퀄리티 (반지·목걸이)</h3>
       <label for="catalyst-type">기폭제 종류</label><select id="catalyst-type"></select>
-      <label for="catalyst-quality">현재 퀄리티 (0~20%)</label><input id="catalyst-quality" type="number" min="0" max="20" value="0">
+      <label for="catalyst-quality">현재 기폭제 퀄리티</label><input id="catalyst-quality" type="number" min="0" max="45" value="0">
       <h3>기존 속성 설정</h3>
       <p class="subtle">옵션 계열과 티어를 선택하세요. 초기 옵션은 재료 사용량에 포함되지 않습니다.</p>
       <label for="mod-family">옵션 선택</label><select id="mod-family"></select>
@@ -56,6 +58,12 @@
       </div>
       <h2>③ 제작 도구함 <small>클릭 즉시 사용</small></h2>
       <div id="orb-buttons" class="tools"></div>
+      <h3>화폐 결과 미리보기 <small>히네코라의 머리카락</small></h3>
+      <label for="preview-orb">다음에 사용할 오브 선택</label><select id="preview-orb"></select>
+      <button id="preview-apply" type="button" class="secondary full">머리카락 사용 · 다음 오브 결과 예측</button>
+      <p id="prediction-result" class="subtle"></p>
+      <h3>기폭제 <small>클릭할 때마다 장신구 퀄리티 적용</small></h3>
+      <div id="catalyst-buttons" class="tools"></div>
       <h3>에센스 <small>장비별 확정 속성 적용</small></h3>
       <label for="essence-select">에센스 선택</label><select id="essence-select"></select>
       <p id="essence-description" class="subtle"></p>
@@ -66,7 +74,7 @@
       <p id="omen-description" class="subtle"></p>
       <button id="omen-activate" type="button" class="secondary full">선택한 징조 활성화</button>
       <h3>심연 제작 재료</h3>
-      <label for="abyss-select">턱뼈 · 갈비뼈 · 빗장뼈 · 에센스</label><select id="abyss-select"></select>
+      <label for="abyss-select">턱뼈 · 갈비뼈 · 빗장뼈</label><select id="abyss-select"></select>
       <p id="abyss-description" class="subtle"></p>
       <button id="abyss-apply" type="button" class="secondary full">심연 재료 클릭 즉시 훼손</button>
       <div id="abyss-reveal" class="abyss-reveal" aria-live="polite"></div>
@@ -76,6 +84,8 @@
 
     <section class="panel side">
       <h2>④ 누적 재료 사용</h2><div id="usage"><p class="subtle">아직 사용한 재료가 없습니다.</p></div>
+      <div id="mirror-copy-summary" class="hint"></div>
+      <div id="mirror-copy-list" class="archive-list"></div>
       <hr><h2>⑤ 제작 로그</h2>
       <p class="subtle">재료 미소모 오류도 원인과 함께 기록합니다.</p>
       <ol id="logs" class="logs"></ol>

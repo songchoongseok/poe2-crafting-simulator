@@ -31,7 +31,7 @@ function fail(state,name,reason){
   return {state:next,ok:false,reason};
 }
 function success(state,name,mods,detail,spent,omenUsed,patch={}){
-  const s=clone(state);s.mods=mods;s.attempts=(s.attempts||0)+1;s.locked=true;
+  const s=clone(state);s.mods=mods;s.attempts=(s.attempts||0)+1;s.locked=true;s.prediction=null;
   s.usage[spent]=(s.usage[spent]||0)+1;
   if(omenUsed){s.usage[omenUsed]=(s.usage[omenUsed]||0)+1;s.omenId=null}
   Object.assign(s,patch);
@@ -82,6 +82,7 @@ export function applyBone(state,base,boneId,rng=Math.random){
   if(!state.locked)return fail(state,material.name,'제작하기 버튼으로 먼저 시작 아이템을 확정하세요.');
   if(state.rarity!=='rare')return fail(state,material.name,'심연 뼈는 희귀 장비에만 사용 가능합니다.');
   if(state.corrupted)return fail(state,material.name,'타락된 장비에는 이 작업을 지원하지 않습니다.');
+  if(state.sanctified)return fail(state,material.name,'축성된 장비에는 더 이상 훼손 작업을 할 수 없습니다.');
   const omen=state.omenId;
   if(hasDesecration(state.mods)&&omen!=='omen-of-putrefaction')return fail(state,material.name,'이미 훼손 속성이 있는 장비에는 다시 훼손할 수 없습니다.');
   if(boneId.startsWith('gnawed-')&&state.itemLevel>64)
@@ -158,13 +159,13 @@ export function revealDesecration(state,optionId,rng=Math.random){
     const lo=Number(a),hi=Number(b);return String(Math.min(lo,hi)+Math.floor(rng()*(Math.abs(hi-lo)+1)));
   });
   mods[pos]={id:mod.id,fractured:false,desecrated:true,unrevealed:false,valueText:shown,kind:mod.kind};
-  const s=clone(state);s.mods=mods;s.desecration={...data,revealed:true,offers:[]};
+  const s=clone(state);s.mods=mods;s.prediction=null;s.desecration={...data,revealed:true,offers:[]};
   s.log.push({order:s.log.length+1,action:'영혼의 우물',success:true,detail:'공개: '+shown,
     stateAfter:{rarity:s.rarity,mods:clone(mods)}});s.notice='훼손 속성 공개: '+shown;
   return {state:s,ok:true};
 }
 function revealBatchDesecration(state,optionId,rng){
-  const s=clone(state),entries=s.desecrations;
+  const s=clone(state),entries=s.desecrations;s.prediction=null;
   const entry=entries.find(d=>!d.revealed);
   if(!entry||!entry.offers.includes(optionId))return fail(state,'영혼의 우물','현재 선택지에 없는 속성입니다.');
   const mod=allRealMods[optionId]||abyssMods[optionId];

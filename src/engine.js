@@ -4,6 +4,7 @@ import { allRealMods, modsForBase, allowedMod, groupsOf, hasGroupConflict, rollA
 import { abyssMods, hiddenMods, hasDesecration } from './abyss.js';
 import { essenceById, essenceModFor, essenceMods } from './essences.js';
 import { catalysts } from '../data/catalysts.js';
+import { slotLimits,qualityCap,augmentSocketCap,approximateQualityGain } from './equipment-rules.js';
 
 export const modById = { ...Object.fromEntries(modifiers.map(m => [m.id, m])), ...allRealMods,
   ...abyssMods,...hiddenMods,...essenceMods };
@@ -17,16 +18,21 @@ export const makeInitial = () => ({
   baseId: 'daggerfoot', itemLevel: 82, rarity: 'magic',
   mods: [{ id: 'fire42', fractured: false }], goals: ['movement35', 'life135', 'fire42', 'cold38', 'light41'], omenId: null,
   catalystType:null,catalystQuality:0,
+  quality:0,sockets:0,
+  mirroredCopies:[],prediction:null,
   usage: {}, log: [], attempts: 0, locked: false, notice: '확장의 오브를 클릭해보세요.'
 });
 
-export function validateStart({ baseId, itemLevel, rarity, mods, catalystType=null, catalystQuality=0 }) {
+export function validateStart({ baseId, itemLevel, rarity, mods, catalystType=null, catalystQuality=0,quality=0,sockets=0 }) {
   if (!baseById[baseId]) return '지원하지 않는 베이스입니다.';
   // Korean per-item modifier pools are checked below, including legacy demo-session mods.
   if (!Number.isInteger(itemLevel) || itemLevel < 1 || itemLevel > 100) return '아이템 레벨은 1~100 정수로 설정해 주세요.';
   if (!Object.hasOwn(SLOT_LIMITS, rarity)) return '존재하지 않는 아이템 등급입니다.';
-  if(!Number.isInteger(catalystQuality)||catalystQuality<0||catalystQuality>20)
-    return '기폭제 퀄리티는 0~20 사이의 정수여야 합니다.';
+  if(!Number.isInteger(catalystQuality)||catalystQuality<0||catalystQuality>qualityCap(baseById[baseId]))
+    return `기폭제 퀄리티는 0~${qualityCap(baseById[baseId])} 사이의 정수여야 합니다.`;
+  if(!Number.isInteger(quality)||quality<0||quality>30)return '일반 장비 퀄리티는 0~30 사이로 입력해 주세요.';
+  if(!Number.isInteger(sockets)||sockets<0||sockets>augmentSocketCap(baseById[baseId])+1)
+    return '장비 종류에 맞지 않는 증강물 홈 개수입니다.';
   if(catalystQuality>0&&(!['ring','amulet'].includes(baseById[baseId].category)||
     !catalysts.some(x=>x.id===catalystType)))
     return '기폭제 퀄리티는 종류를 지정한 반지나 목걸이에서만 사용할 수 있습니다.';
@@ -50,8 +56,9 @@ export function validateStart({ baseId, itemLevel, rarity, mods, catalystType=nu
     if(abyssal && rarity!=='rare')return '훼손 속성은 희귀 아이템에서만 유지할 수 있습니다.';
     keys.add(m.id); groupsOf(m).forEach(g => groups.add(g));
   }
+  const limits=slotLimits(baseById[baseId],rarity);
   for (const kind of ['prefix', 'suffix']) {
-    if (mods.filter(x => modById[x.id]?.kind === kind).length > SLOT_LIMITS[rarity]) {
+    if (mods.filter(x => modById[x.id]?.kind === kind).length > limits[kind]) {
       return `${kind === 'prefix' ? '접두어' : '접미어'} 자리가 가득 찼습니다.`;
     }
   }
@@ -59,10 +66,10 @@ export function validateStart({ baseId, itemLevel, rarity, mods, catalystType=nu
 }
 
 export function candidateMods(mods, itemLevel, rarity, baseId='daggerfoot', minModLevel=1) {
-  const max=SLOT_LIMITS[rarity], base=baseById[baseId];
+  const base=baseById[baseId],limits=slotLimits(base,rarity);
   const pool=modsForBase(base,itemLevel);
   return pool.filter(m=>m.level>=minModLevel && !mods.some(x=>x.id===m.id || hasGroupConflict(modById[x.id],m)) &&
-    mods.filter(x=>modById[x.id].kind===m.kind).length<max);
+    mods.filter(x=>modById[x.id].kind===m.kind).length<limits[m.kind]);
 }
 
 function pick(list, rng) {
@@ -88,6 +95,9 @@ function homogenisedPool(pool,existing,rng){
   const family=pick(families,rng);
   return family?pool.filter(m=>familyOf(m)===family):[];
 }
+function magnifyNumbers(value,factor){
+  return String(value).replace(/-?\d+(?:\.\d+)?/g,n=>String(Math.ceil(Number(n)*factor)));
+}
 
 function fail(state, action, reason) {
   const s = clone(state);
@@ -99,7 +109,7 @@ function fail(state, action, reason) {
 function finish(state, orb, mods, rarity, detail, omenUsed, patch={}) {
   const s = clone(state);
   s.mods = mods; s.rarity = rarity;
-  Object.assign(s,patch);
+  Object.assign(s,{prediction:null,...patch});
   if (!hasDesecration(mods)) s.desecration=null;
   s.locked = true; s.attempts++;
   s.usage[orb.id] = (s.usage[orb.id] || 0) + 1;
@@ -116,13 +126,16 @@ function finish(state, orb, mods, rarity, detail, omenUsed, patch={}) {
 export function applyOrb(state, orbId, rng = Math.random) {
   const orb = orbById[orbId];
   if (!orb) return fail(state, orbId, '알 수 없는 오브입니다.');
+  if(state.prediction?.orbId===orbId)rng=seededRandom(state.prediction.seed);
   if (state.destroyed) return fail(state, orb.name, '이미 파괴된 아이템에는 제작할 수 없습니다.');
   if (state.corrupted) return fail(state, orb.name, '타락한 아이템에는 일반 오브 제작을 진행할 수 없습니다.');
-  if (state.rarity==='unique') return fail(state,orb.name,'고유 아이템에는 이 일반 제작 재료를 사용할 수 없습니다.');
+  if(state.sanctified)return fail(state,orb.name,'축성된 아이템은 일반 화폐로 더 이상 제작할 수 없습니다.');
+  if (state.rarity==='unique'&&!['quality','socket','vaal'].includes(orb.action)) return fail(state,orb.name,'고유 아이템에는 이 일반 제작 재료를 사용할 수 없습니다.');
+  if(state.sanctified&&orb.action==='mirror')return fail(state,orb.name,'축성된 장비는 복제할 수 없습니다.');
   const valid = validateStart(state);
   if (valid) return fail(state, orb.name, `현재 아이템이 유효하지 않습니다: ${valid}`);
   // Every regular equipment class uses its PoB2 eligibility-filtered Korean affix pool.
-  if(!modsForBase(baseById[state.baseId],state.itemLevel).length)
+  if(!['quality','socket','divine','vaal','chance','mirror'].includes(orb.action)&&!modsForBase(baseById[state.baseId],state.itemLevel).length)
     return fail(state, orb.name, '이 베이스의 해당 아이템 레벨에 부여 가능한 속성을 확인하지 못했습니다.');
   const mods = clone(state.mods);
   const activeOmen = omenById[state.omenId];
@@ -132,7 +145,29 @@ export function applyOrb(state, orbId, rng = Math.random) {
   const action=orb.action||orbId,minLevel=orb.minModLevel||1;
   let nextRarity = state.rarity;
   let added = null, removed = null, omenUsed = null;const changes=[],patch={};
-  if (action === 'transmute') {
+  if(action==='mirror'){
+    const snapshot={baseId:state.baseId,itemLevel:state.itemLevel,rarity:state.rarity,
+      mods:clone(state.mods),quality:state.quality||0,catalystType:state.catalystType||null,
+      catalystQuality:state.catalystQuality||0,sockets:state.sockets||0,mirrored:true};
+    patch.mirroredCopies=[...(state.mirroredCopies||[]),snapshot];
+    changes.push(`원본을 변경하지 않고 제작 불가 복제본 ${patch.mirroredCopies.length}개째 생성`);
+  }else if(action==='quality'){
+    const base=baseById[state.baseId];
+    const valid=orb.qualityCategory==='armour'?base.group==='방어구':
+      orb.qualityCategory==='caster'?['wand','sceptre','staff'].includes(base.category):
+      base.group==='무기'&&!['wand','sceptre','staff'].includes(base.category);
+    if(!valid)return fail(state,orb.name,'선택한 숫돌·식각기·고철을 사용할 수 없는 장비 종류입니다.');
+    if((state.quality||0)>=20)return fail(state,orb.name,'화폐로 올릴 수 있는 퀄리티 상한 20%에 도달했습니다.');
+    const next=Math.min(20,(state.quality||0)+approximateQualityGain(state.itemLevel));
+    patch.quality=next;
+    changes.push(`퀄리티 ${state.quality||0}% → ${next}% (아이템 레벨별 증가량 임시 적용)`);
+  } else if(action==='socket'){
+    const cap=augmentSocketCap(baseById[state.baseId]);
+    if(!cap)return fail(state,orb.name,'이 장비에는 증강물 홈을 추가할 수 없습니다.');
+    if((state.sockets||0)>=cap)return fail(state,orb.name,`기본 증강물 홈 상한 ${cap}개에 도달했습니다.`);
+    patch.sockets=(state.sockets||0)+1;
+    changes.push(`증강물 홈 ${(state.sockets||0)}개 → ${patch.sockets}개`);
+  } else if (action === 'transmute') {
     if (nextRarity !== 'normal') return fail(state, orb.name, '일반 아이템에만 사용할 수 있습니다.');
     nextRarity = 'magic';
     added = pick(candidateMods(mods, state.itemLevel, nextRarity, state.baseId,minLevel), rng);
@@ -233,7 +268,19 @@ export function applyOrb(state, orbId, rng = Math.random) {
     changes.push('분열 고정 '+(target.valueText||modById[target.id].effect||modById[target.id].name));
   } else if(action==='divine'){
     const implicitOnly=activeOmen?.id==='omen-of-the-blessed';
-    if(implicitOnly){
+    const sanctification=activeOmen?.id==='omen-of-sanctification'&&nextRarity==='rare';
+    if(sanctification){
+      if(!mods.length)return fail(state,orb.name,'배율을 적용할 명시 속성이 없습니다.');
+      for(const m of mods){
+        if(m.unrevealed)continue;
+        const factor=(78+Math.floor(rng()*45))/100;
+        const text=m.valueText||(modById[m.id]?.effect?rollAffixText(modById[m.id],rng):modById[m.id]?.name)||'';
+        m.valueText=magnifyNumbers(text,factor);
+        m.sanctificationMultiplier=factor;
+      }
+      omenUsed=activeOmen.id;patch.sanctified=true;
+      changes.push('각 속성의 기존 수치를 개별 0.78~1.22배로 변경하고 축성됨 (이후 제작 불가)');
+    }else if(implicitOnly){
       if(!baseById[state.baseId]?.implicit)return fail(state,orb.name,'고정 속성이 없는 베이스라 축복받은 자의 징조를 사용할 수 없습니다.');
       patch.implicitRoll=rng();omenUsed=activeOmen.id;
       changes.push('고정 속성의 수치만 다시 추첨');
@@ -245,9 +292,6 @@ export function applyOrb(state, orbId, rng = Math.random) {
         if(def?.effect)m.valueText=rollAffixText(def,rng);
       }
       changes.push('모든 수치 범위를 다시 추첨');
-    }
-    if(activeOmen?.id==='omen-of-sanctification'&&nextRarity==='rare'){
-      omenUsed=activeOmen.id;patch.sanctified=true;changes.push('축성됨');
     }
   } else if(action==='chance'){
     if(nextRarity!=='normal')return fail(state,orb.name,'일반 아이템에만 사용할 수 있습니다.');
@@ -261,13 +305,34 @@ export function applyOrb(state, orbId, rng = Math.random) {
   } else if(action==='vaal'){
     if(state.corrupted)return fail(state,orb.name,'이미 타락된 아이템입니다.');
     patch.corrupted=true;
-    const outcome=activeOmen?.id==='omen-of-corruption'?(rng()<.5?1:2):Math.floor(rng()*3);
+    const outcome=activeOmen?.id==='omen-of-corruption'?1+Math.floor(rng()*3):Math.floor(rng()*4);
     if(outcome===0)changes.push('추가 변화 없이 타락');
     else if(outcome===1){
-      const removable=mods.filter(x=>!x.fractured&&!x.desecrated);
-      if(removable.length){removed=pick(removable,rng);mods.splice(mods.indexOf(removed),1);changes.push('무작위 속성 제거');}
-      else changes.push('변경 가능한 속성이 없어 타락 상태만 부여');
-    }else {patch.vaalImplicit=true;changes.push('타락 고정 속성 변경 (수치 데이터 미확인)');}
+      if(nextRarity==='unique'){
+        patch.vaalMagnitude=Math.round((.78+rng()*.44)*100)/100;
+        changes.push(`고유 속성 크기 배율 ${patch.vaalMagnitude}배 (고유 상세 속성 데이터 미확인)`);
+      }else{
+        const eligible=mods.filter(x=>!x.fractured&&!x.unrevealed&&!x.desecrated);
+        const max=Math.min(3,Math.ceil(eligible.length/2));
+        const count=max?1+Math.floor(rng()*max):0;
+        for(let i=0;i<count;i++){
+          const old=pick(eligible.filter(m=>mods.some(x=>x.id===m.id)),rng);
+          if(!old)break;
+          mods.splice(mods.indexOf(old),1);
+          const replacement=pick(candidateMods(mods,state.itemLevel,nextRarity,state.baseId),rng);
+          if(replacement)mods.push({id:replacement.id,fractured:false,valueText:rollAffixText(replacement,rng)});
+          changes.push('무작위 속성 재추첨 '+(old.valueText||modById[old.id]?.effect||modById[old.id]?.name));
+        }
+        if(!changes.length)changes.push('교체 가능한 속성이 없어 추가 변화 없음');
+      }
+    }else if(outcome===2){
+      patch.vaalImplicit=true;
+      changes.push('타락 전용 부여 속성 획득 (장비별 실제 속성 풀 확인 필요)');
+    }else {
+      const cap=augmentSocketCap(baseById[state.baseId]);
+      if(cap>0){patch.sockets=(state.sockets||0)+1;changes.push(`기본 제한을 무시하고 증강물 홈 ${patch.sockets}개로 증가`);}
+      else changes.push('증강물 홈이 없는 종류여서 추가 변화 없음');
+    }
     if(activeOmen?.id==='omen-of-corruption')omenUsed=activeOmen.id;
   } else return fail(state, orb.name, '미구현 오브입니다.');
   const detail=changes.length?changes.join(' / '):[
@@ -300,7 +365,7 @@ export function applyEssence(state, essenceId, rng=Math.random){
     if(!candidates.length)return fail(state,essence.name,'제거 조건에 맞는 비분열 속성이 없습니다.');
     removed=pick(candidates,rng);mods.splice(mods.indexOf(removed),1);
   }
-  if(mods.filter(x=>modById[x.id]?.kind===mod.kind).length>=3)
+  if(mods.filter(x=>modById[x.id]?.kind===mod.kind).length>=slotLimits(baseById[state.baseId],'rare')[mod.kind])
     return fail(state,essence.name,'확정 속성이 들어갈 '+(mod.kind==='prefix'?'접두어':'접미어')+' 자리가 없습니다.');
   if(mods.some(x=>hasGroupConflict(modById[x.id],mod)))
     return fail(state,essence.name,'기존 속성과 확정 속성이 충돌합니다. 충돌 속성을 제거한 뒤 사용하세요.');
@@ -310,11 +375,54 @@ export function applyEssence(state, essenceId, rng=Math.random){
     `${changed} / 확정 ${mods.at(-1).valueText}`,crystallisation?.id||null);
 }
 
+export function applyCatalyst(state,catalystId){
+  const catalyst=catalysts.find(x=>x.id===catalystId);
+  if(!catalyst)return fail(state,catalystId,'등록되지 않은 기폭제입니다.');
+  if(!state.locked)return fail(state,catalyst.name,'제작하기 버튼으로 아이템 설정을 확정해 주세요.');
+  if(state.corrupted||state.destroyed)return fail(state,catalyst.name,'타락하거나 파괴된 아이템에는 기폭제를 사용할 수 없습니다.');
+  const base=baseById[state.baseId];
+  if(!['ring','amulet'].includes(base.category))return fail(state,catalyst.name,'반지와 목걸이에만 사용할 수 있는 기폭제입니다.');
+  const err=validateStart(state);if(err)return fail(state,catalyst.name,err);
+  const cap=qualityCap(base),same=state.catalystType===catalystId;
+  const previous=same?(state.catalystQuality||0):0;
+  if(previous>=cap)return fail(state,catalyst.name,`기폭제 퀄리티가 최대 ${cap}%입니다.`);
+  const next=Math.min(cap,previous+approximateQualityGain(state.itemLevel));
+  return finish(state,{id:catalyst.id,name:catalyst.name},clone(state.mods),state.rarity,
+    `${same?'퀄리티 증가':'기존 기폭제 유형 대체'}: ${previous}% → ${next}% (아이템 레벨별 증가량 임시 적용)`,null,
+    {catalystType:catalystId,catalystQuality:next});
+}
+
+function seededRandom(seed){
+  let value=seed>>>0;
+  return ()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
+}
+export function previewCurrency(state,orbId,seed=Math.floor(Math.random()*4294967296)){
+  const name='히네코라의 머리카락',orb=orbById[orbId];
+  if(!orb)return fail(state,name,'예측할 오브를 선택해 주세요.');
+  if(orb.action==='mirror')return fail(state,name,'복제 전용 화폐는 예측할 대상에서 제외합니다.');
+  if(!state.locked)return fail(state,name,'먼저 제작을 시작해 주세요.');
+  if(state.destroyed||state.corrupted||state.sanctified||state.rarity==='unique')
+    return fail(state,name,'타락·파괴·축성·고유 장비에는 이 예측을 지원하지 않습니다.');
+  if(state.prediction)return fail(state,name,'이미 다음 화폐 결과를 예측하고 있습니다.');
+  const result=applyOrb({...state,prediction:null},orbId,seededRandom(seed));
+  if(!result.ok)return fail(state,name,'선택한 화폐가 현재 아이템에 적용되지 않습니다: '+result.reason);
+  const detail=result.state.log.at(-1).detail;
+  const s=clone(state);
+  s.prediction={orbId,seed,detail};
+  s.locked=true;s.attempts=(s.attempts||0)+1;
+  s.usage['hinekoras-lock']=(s.usage['hinekoras-lock']||0)+1;
+  s.log.push({order:s.log.length+1,action:name,success:true,
+    detail:`다음 ${orb.name} 결과 예측: ${detail}`});
+  s.notice=`${name}: ${orb.name} 사용 시 ${detail}`;
+  return {state:s,ok:true};
+}
+
 export function toggleOmen(state, omenId) {
   const s = clone(state);
   if (!omenById[omenId]) return { state: s, ok: false, reason:'알 수 없는 징조입니다.' };
   if (!omenById[omenId].implemented) return { state:s, ok:false, reason:'이 징조는 이름과 효과 설명만 제공하며 실제 제작 효과는 아직 미구현입니다.' };
   s.omenId = s.omenId === omenId ? null : omenId;
+  if(s.prediction)s.prediction=null;
   s.log.push({ order: s.log.length + 1, action: omenById[omenId].name, success: true,
     detail: s.omenId ? '활성화(미소모)' : '활성화 해제' });
   s.notice = `${omenById[omenId].name}: ${s.omenId ? '활성화' : '해제'}`;

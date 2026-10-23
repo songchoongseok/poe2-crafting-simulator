@@ -21,8 +21,8 @@ test('UI: 제작하기, 설정/옵션 티어, 심연/징조, 이전 제작 보�
  assert.match(app,/localStorage\.setItem\(/);
  assert.match(app,/picker\.setLocked\(false\)/);
 });
-test('UI: 속성은 접두/접미 각각 고정 3칸이고 버튼 높이는 영향받지 않는다',()=>{
- assert.match(app,/Array\.from\(\{length:3\}/);
+test('UI: 일반 장비는 양쪽 3칸, 특수 반지의 예외 칸도 표시한다',()=>{
+ assert.match(app,/Array\.from\(\{length:Math\.max\(3,available\)\}/);
  assert.match(css,/\.item-card\{height:660px/);
  assert.match(css,/#prefix-list,#suffix-list\{/);
 });

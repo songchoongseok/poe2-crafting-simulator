@@ -72,4 +72,4 @@ export const omens=omenCatalogue.map(o=>extraOmenEffects[o.id]
   ?{...o,...extraOmenEffects[o.id],implemented:true}:o);
 export const abyssCraftingMaterials = abyssMaterials;
 
-export const DEMO_NOTICE = 'POE2 한국어 일반 속성·PoE2DB 에센스/오브 데이터 사용. 속성 가중치와 일부 특수 결과는 아직 미검증입니다. 일반 장비 제작용 징조 31종의 조건·소모를 연결했지만, 실제 게임과 동일한 확률 또는 완전한 고유/바알 결과를 보장하지 않습니다.';
+export const DEMO_NOTICE = 'POE2 한국어 속성·PoE2DB 제작 재료를 연결했습니다. 속성 가중치, 레벨별 퀄리티 증가량, 정확한 고유·타락 전용 속성은 미검증입니다. 일반 장비 제작용 징조 31종은 실행되며, 나머지 사건형 징조는 대상 사건이 없어 차단합니다.';

@@ -56,10 +56,15 @@ test('에센스의 적용 부위가 없으면 재료를 소모하지 않는다',
 });
 test('신성한 오브와 축성 징조가 상태·소모량을 변경한다',()=>{
  const r=applyOrb(ready('boots','normal'),'alchemy',zero);
+ const oldValues=r.state.mods.map(m=>m.valueText);
  const s=toggleOmen(r.state,'omen-of-sanctification').state;
  const d=applyOrb(s,'divine',zero);
  assert.equal(d.ok,true);assert.equal(d.state.sanctified,true);
  assert.equal(d.state.usage['omen-of-sanctification'],1);
+ assert.deepEqual(d.state.mods.map(m=>m.sanctificationMultiplier),[.78,.78,.78,.78]);
+ assert.ok(d.state.mods.some((m,i)=>m.valueText!==oldValues[i]));
+ assert.equal(applyOrb(d.state,'exalt').ok,false);
+ assert.equal(parseSession(serializeSession(d.state)).mods[0].sanctificationMultiplier,.78);
 });
 test('촉진하는 찬미의 징조는 기폭제 품질을 사용하고 소모한다',()=>{
  let s=ready('ring');s.catalystType='fire';s.catalystQuality=20;

@@ -1,5 +1,6 @@
 import { orbs, omens, abyssCraftingMaterials, DEMO_NOTICE } from '../data/demo.js';
-import { modById, omenById, baseById, SLOT_LIMITS, makeInitial, validateStart, setInitial, setGoals, goalProgress, applyOrb, applyEssence, toggleOmen } from './engine.js';
+import { modById, omenById, baseById, makeInitial, validateStart, setInitial, setGoals, goalProgress, applyOrb, applyEssence, applyCatalyst, previewCurrency, toggleOmen } from './engine.js';
+import { slotLimits,qualityCap,augmentSocketCap } from './equipment-rules.js';
 import { essenceCatalogue } from '../data/poe2db-essences.js';
 import { essenceById, essenceOptionFor } from './essences.js';
 import { catalysts } from '../data/catalysts.js';
@@ -54,12 +55,26 @@ function setup() {
   $('#catalyst-type').replaceChildren(new Option('없음',''),...catalysts.map(x=>new Option(x.name,x.id)));
   $('#abyss-select').replaceChildren(...abyssCraftingMaterials.filter(x=>x.id!=='essence-of-the-abyss').map(x=>new Option(x.name,x.id)));
   $('#orb-buttons').innerHTML = orbs.map(o => `<button data-orb="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
+  $('#preview-orb').replaceChildren(...orbs.filter(x=>x.action!=='mirror').map(x=>new Option(x.name,x.id)));
+  $('#catalyst-buttons').innerHTML=catalysts.map(o=>`<button data-catalyst="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   $('#omen-buttons').innerHTML = omens.filter(o=>o.implemented).map(o => `<button data-omen="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   picker = createBasePicker(id => {prepareNew(id);return true;});
   picker.sync(state.baseId);
   $('#rarity').addEventListener('change', e => {
     const result = setInitial(state, { rarity: e.target.value, mods: [] });
     if (result.ok) state = result.state; else showError(result.reason); render();
+  });
+  $('#level').addEventListener('change',e=>{
+    const result=setInitial(state,{itemLevel:Number(e.target.value)});
+    if(result.ok)state=result.state;else showError(result.reason);render();
+  });
+  $('#initial-quality').addEventListener('change',e=>{
+    const result=setInitial(state,{quality:Number(e.target.value)});
+    if(result.ok)state=result.state;else showError(result.reason);render();
+  });
+  $('#initial-sockets').addEventListener('change',e=>{
+    const result=setInitial(state,{sockets:Number(e.target.value)});
+    if(result.ok)state=result.state;else showError(result.reason);render();
   });
   $('#catalyst-type').addEventListener('change',e=>{
     const result=setInitial(state,{catalystType:e.target.value||null,
@@ -82,6 +97,14 @@ function setup() {
     const b=e.target.closest('button[data-orb]');if(!b)return;
     if(!state.locked)return showError('먼저 제작하기 버튼으로 시작 아이템 설정을 확정하세요.');
     state=applyOrb(state,b.dataset.orb).state;render();
+  });
+  $('#catalyst-buttons').addEventListener('click',e=>{
+    const b=e.target.closest('button[data-catalyst]');if(!b)return;
+    if(!state.locked)return showError('먼저 제작하기 버튼을 눌러주세요.');
+    state=applyCatalyst(state,b.dataset.catalyst).state;render();
+  });
+  $('#preview-apply').addEventListener('click',()=>{
+    state=previewCurrency(state,$('#preview-orb').value).state;render();
   });
   $('#omen-buttons').addEventListener('click', e => {
     const b=e.target.closest('button[data-omen]');if(!b)return;
@@ -197,7 +220,7 @@ function renderArchive(){
     const name=escapeHTML(sessions[0].name);
     return `<details class="archive-card"><summary>${name} <span>${sessions.length}회 제작</span></summary>
       ${sessions.map(a=>`<details class="archive-session"><summary>${escapeHTML(a.createdAt)} · ${a.attempts}회 오브 사용</summary>
-      <div class="archive-usage">${Object.entries(a.usage).map(([k,n])=>`${escapeHTML(orbs.find(o=>o.id===k)?.name||omenById[k]?.name||abyssCraftingMaterials.find(o=>o.id===k)?.name||essenceById[k]?.name||k)} ×${n}`).join(' · ')||'재료 사용 없음'}</div>
+      <div class="archive-usage">${Object.entries(a.usage).map(([k,n])=>`${escapeHTML(orbs.find(o=>o.id===k)?.name||omenById[k]?.name||abyssCraftingMaterials.find(o=>o.id===k)?.name||essenceById[k]?.name||catalysts.find(o=>o.id===k)?.name||(k==='hinekoras-lock'?'히네코라의 머리카락':k))} ×${n}`).join(' · ')||'재료 사용 없음'}</div>
       <ol class="logs">${a.logs.map(l=>`<li><b>#${l.order} ${escapeHTML(l.action)}</b>${escapeHTML(l.detail)}</li>`).join('')}</ol>
       </details>`).join('')}</details>`;
   }).join('')||'<p class="subtle">보관된 제작 이력이 없습니다.</p>';
@@ -213,9 +236,10 @@ function deleteMod(e) {
 function renderMods(kind) {
   const selected=state.mods.map((m,index)=>({...m,index,definition:modById[m.id]}))
     .filter(m=>m.definition?.kind===kind);
-  const available=SLOT_LIMITS[state.rarity];
-  // Three fixed slots for each prefix/suffix section, regardless of rarity.
-  return Array.from({length:3},(_,slot)=>{
+  const available=slotLimits(baseById[state.baseId],state.rarity)[kind];
+  // Regular equipment uses three slots per side. Exceptional ring implicits
+  // permit more on one side; keep those visible instead of hiding real mods.
+  return Array.from({length:Math.max(3,available)},(_,slot)=>{
     const m=selected[slot];
     if(!m) return `<div class="mod-row empty-slot ${slot>=available?'locked-slot':''}"><span>${slot>=available?'잠긴 칸':'빈 '+(kind==='prefix'?'접두어':'접미어')+' 칸'}</span></div>`;
     const value=m.valueText||m.definition.effect||m.definition.name;
@@ -228,12 +252,19 @@ function renderMods(kind) {
 function render() {
   const base = baseById[state.baseId];
   $('#rarity').value = state.rarity; $('#level').value = state.itemLevel;
+  $('#initial-quality').value=state.quality||0;
+  $('#initial-sockets').value=state.sockets||0;
+  $('#initial-sockets').max=augmentSocketCap(base)+1;
   $('#catalyst-type').value=state.catalystType||'';
   $('#catalyst-quality').value=state.catalystQuality||0;
+  $('#catalyst-quality').max=qualityCap(base);
   $('#catalyst-type').disabled=state.locked||!['ring','amulet'].includes(base.category);
   $('#catalyst-quality').disabled=state.locked||!['ring','amulet'].includes(base.category);
   picker.setLocked(false); // Changing equipment opens a new draft and archives the prior session.
   $('#rarity').disabled=state.locked;
+  $('#level').disabled=state.locked;
+  $('#initial-quality').disabled=state.locked;
+  $('#initial-sockets').disabled=state.locked||augmentSocketCap(base)===0;
   const pool=modsForBase(base,state.itemLevel);
   renderFamilies();
   $('#start-craft').disabled=state.locked || !pool.length;
@@ -246,11 +277,14 @@ function render() {
     : '설정을 모두 마쳤으면 가운데 제작하기 버튼을 누르세요.';
   $('#item-name').textContent = base.name;
   $('#base-category-label').textContent = `${base.group} / ${CATEGORY_LABELS[base.category] || base.category} / ${base.subType || '기본 유형'}`;
-  $('#base-stats').textContent = `시연 아이템 레벨 ${state.itemLevel} (자동 고정) · ${describeBase(base)}`;
+  $('#base-stats').textContent = `아이템 레벨 ${state.itemLevel} · ${describeBase(base)}`;
   if(state.sanctified)$('#base-stats').textContent+=' · 축성됨';
   if(state.corrupted)$('#base-stats').textContent+=' · 타락됨';
   if(state.implicitRoll!==undefined&&state.implicitRoll!==null)$('#base-stats').textContent+=' · 고정 속성 수치 재추첨됨';
   if(state.catalystQuality)$('#base-stats').textContent+=` · ${catalysts.find(c=>c.id===state.catalystType)?.name||'기폭제'} ${state.catalystQuality}%`;
+  if(state.quality)$('#base-stats').textContent+=` · 장비 퀄리티 ${state.quality}%`;
+  if(state.sockets)$('#base-stats').textContent+=` · 증강물 홈 ${state.sockets}개`;
+  if(state.vaalMagnitude)$('#base-stats').textContent+=` · 타락 속성 배율 ${state.vaalMagnitude}배`;
   $('#craft-support-note').textContent = pool.length
     ? `한국어 일반 속성 후보 ${pool.length}종 · 등장 비율은 미검증, 현재 균등 추첨`
     : '이 베이스에 사용 가능한 일반 속성 후보가 확인되지 않아 제작을 차단합니다.';
@@ -278,12 +312,22 @@ function render() {
   }).join('') || '<p class="subtle">목표 속성을 추가해 주세요.</p>';
   $('#prefix-list').innerHTML = renderMods('prefix');
   $('#suffix-list').innerHTML = renderMods('suffix');
-  $('#prefix-count').textContent = `${state.mods.filter(m => modById[m.id].kind === 'prefix').length}/${SLOT_LIMITS[state.rarity]}`;
-  $('#suffix-count').textContent = `${state.mods.filter(m => modById[m.id].kind === 'suffix').length}/${SLOT_LIMITS[state.rarity]}`;
+  $('#prefix-count').textContent = `${state.mods.filter(m => modById[m.id].kind === 'prefix').length}/${slotLimits(base,state.rarity).prefix}`;
+  $('#suffix-count').textContent = `${state.mods.filter(m => modById[m.id].kind === 'suffix').length}/${slotLimits(base,state.rarity).suffix}`;
   document.querySelectorAll('[data-omen]').forEach(el => el.classList.toggle('active', el.dataset.omen === state.omenId));
   $('#notice').textContent = state.notice; $('#notice').classList.toggle('error',state.notice.startsWith('사용 불가'));
+  $('#prediction-result').textContent=state.prediction?
+    `예측 적용 대기 중 · ${orbs.find(x=>x.id===state.prediction.orbId)?.name}: ${state.prediction.detail}`:
+    '예측 후 해당 오브를 클릭하면 표시된 결과가 적용됩니다. 다른 제작을 하면 예측이 소멸합니다.';
+  $('#mirror-copy-summary').textContent=(state.mirroredCopies?.length||0)?
+    `칼란드라의 거울로 만든 복제본 ${state.mirroredCopies.length}개 · 복제본은 추가 제작 불가, 원본 제작은 계속 가능` : '';
+  $('#mirror-copy-list').innerHTML=(state.mirroredCopies||[]).map((copy,i)=>
+    `<details class="archive-card"><summary>복제본 ${i+1} · ${escapeHTML(baseById[copy.baseId]?.name||'알 수 없는 장비')} · ${escapeHTML(({normal:'일반',magic:'마법',rare:'희귀'})[copy.rarity]||'고유')}</summary>
+    <p class="subtle">아이템 레벨 ${copy.itemLevel} · 품질 ${copy.quality||0}% · 증강물 홈 ${copy.sockets||0}개 · 복제됨</p>
+    ${copy.mods.map(mod=>`<div class="mod-row occupied-slot">${escapeHTML(mod.valueText||modById[mod.id]?.effect||modById[mod.id]?.name||'미확인 속성')}</div>`).join('')}
+    </details>`).join('');
   const used = Object.entries(state.usage).filter(([_, amount])=>amount>0);
-  $('#usage').innerHTML = used.length ? used.map(([id, amount]) => `<div class="usage-row"><span>${escapeHTML(orbs.find(o=>o.id===id)?.name || omenById[id]?.name || abyssCraftingMaterials.find(o=>o.id===id)?.name || essenceById[id]?.name || id)}</span><strong>×${amount}</strong></div>`).join('') : '<p class="subtle">아직 사용한 재료가 없습니다.</p>';
+  $('#usage').innerHTML = used.length ? used.map(([id, amount]) => `<div class="usage-row"><span>${escapeHTML(orbs.find(o=>o.id===id)?.name || omenById[id]?.name || abyssCraftingMaterials.find(o=>o.id===id)?.name || essenceById[id]?.name || catalysts.find(o=>o.id===id)?.name || (id==='hinekoras-lock'?'히네코라의 머리카락':id))}</span><strong>×${amount}</strong></div>`).join('') : '<p class="subtle">아직 사용한 재료가 없습니다.</p>';
   $('#logs').innerHTML = [...state.log].reverse().map(entry=>`<li class="${entry.success?'':'failed'}"><b>#${entry.order} ${escapeHTML(entry.action)}${entry.success?'':' · 오류'}</b>${escapeHTML(entry.detail)}${entry.omen ? '<br>징조 소모: ' + escapeHTML(entry.omen) : ''}</li>`).join('');
   renderArchive();
 }
