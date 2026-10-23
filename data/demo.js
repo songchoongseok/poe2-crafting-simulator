@@ -1,3 +1,4 @@
+import { koreanBaseNames } from './kr-base-names.js';
 // DEMO DATA ONLY. These are NOT verified official POE2 mod weights or recipes.
 // Never relabel a demonstration probability as an in-game probability.
 import { armourBases } from './pob2-armour.js';
@@ -12,11 +13,11 @@ const nameCounts = rawBases.reduce((all, b) => (all[b.id] = (all[b.id] || 0) + 1
 const seenVariants = Object.create(null);
 export const bases = [
   ...rawBases.map(b => {
-    if (nameCounts[b.id] === 1) return b;
+    if (nameCounts[b.id] === 1) return { ...b, name: koreanBaseNames[b.sourceName] || b.name };
     const variant = (seenVariants[b.id] || 0) + 1;
     seenVariants[b.id] = variant;
     return { ...b, id: `${b.id}#variant-${variant}`,
-      name: `${b.name} (변형 ${variant})`, variant, variantCount: nameCounts[b.id] };
+      name: `${koreanBaseNames[b.sourceName] || b.name} (변형 ${variant})`, variant, variantCount: nameCounts[b.id] };
   }),
   { id:'custom_boots', name:'사용자 지정 신발 (시연)', sourceName:'Custom Boots (DEMO)',
     group:'방어구',category:'boots',subType:'Evasion/Energy Shield',
