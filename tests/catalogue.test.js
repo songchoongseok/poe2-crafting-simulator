@@ -51,14 +51,14 @@ test('베이스를 바꿔 초기화하면 선택 및 세션 저장에 반영',()
   assert.equal(parseSession(serializeSession(changed.state)).baseId,ring.id);
 });
 
-test('미지원 장비에는 신발 속성이 추가되지 않으며 오브 미소모',()=>{
+test('반지도 실데이터 기반 제작이 가능하며 신발용 시연 옵션은 거부된다',()=>{
   const ring=bases.find(b=>b.category==='ring'&&b.sourceName==='Iron Ring');
-  const s={...makeInitial(),baseId:ring.id,rarity:'normal',mods:[]};
-  assert.equal(supportsDemoCrafting(ring),false);
+  const s={...makeInitial(),baseId:ring.id,itemLevel:Math.max(1,ring.requiredLevel),
+    rarity:'normal',mods:[],goals:[]};
   assert.equal(setInitial(s,{mods:[{id:'movement35',fractured:false}]}).ok,false);
   const r=applyOrb(s,'transmute',()=>0);
-  assert.equal(r.ok,false);
-  assert.deepEqual(r.state.usage,{});
-  assert.deepEqual(r.state.mods,[]);
-  assert.match(r.reason,/미검증|차단/);
+  assert.equal(r.ok,true);
+  assert.equal(r.state.usage.transmute,1);
+  assert.equal(r.state.mods.length,1);
+  assert.notEqual(r.state.mods[0].id,'movement35');
 });
