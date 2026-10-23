@@ -48,7 +48,7 @@ function setup() {
   $('#omen-select').replaceChildren(...omens.map(o=>new Option(`${o.name}${o.implemented?'':' · 미구현'}`,o.id)));
   $('#abyss-select').replaceChildren(...abyssCraftingMaterials.map(x=>new Option(x.name,x.id)));
   $('#orb-buttons').innerHTML = orbs.map(o => `<button data-orb="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
-  $('#omen-buttons').innerHTML = omens.map(o => `<button data-omen="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
+  $('#omen-buttons').innerHTML = omens.filter(o=>o.implemented).map(o => `<button data-omen="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   picker = createBasePicker(id => {prepareNew(id);return true;});
   picker.sync(state.baseId);
   $('#rarity').addEventListener('change', e => {
@@ -193,18 +193,18 @@ function renderMods(kind) {
 function render() {
   const base = baseById[state.baseId];
   $('#rarity').value = state.rarity; $('#level').value = state.itemLevel;
-  picker.setLocked(state.locked);
-  $('#rarity').disabled = state.locked;
-  const pool = modsForBase(base,state.itemLevel);
-  for (const [selector, selected] of [['#modifier',$('#modifier').value],['#goal-modifier',$('#goal-modifier').value]]) {
-    $(selector).innerHTML = pool.map(m => `<option value="${escapeHTML(m.id)}">${m.kind === 'prefix' ? '접두어' : '접미어'} · ${escapeHTML(m.effect)} (${escapeHTML(m.name)}, T${m.levelGroup})</option>`).join('');
-    if (pool.some(m=>m.id===selected)) $(selector).value=selected;
-    $(selector).disabled=!pool.length || (selector==='#modifier' && state.locked);
-  }
+  picker.setLocked(false); // Changing equipment opens a new draft and archives the prior session.
+  $('#rarity').disabled=state.locked;
+  const pool=modsForBase(base,state.itemLevel);
+  renderFamilies();
+  $('#start-craft').disabled=state.locked || !pool.length;
+  $('#craft-phase').textContent=state.locked?'제작 진행 중 · 오브 클릭 즉시 사용':'설정 중 · 제작하기를 눌러 확정';
   $('#fractured').disabled=state.locked || !pool.length;
   $('#add-mod').disabled=state.locked || !pool.length;
   $('#goal-add').disabled=!pool.length;
-  $('#setup-hint').textContent = state.locked ? '제작 중: 시작 아이템 설정 잠김. 새 제작 시작을 누르면 초기화됩니다.' : '최초 오브 사용 시 설정이 잠깁니다.';
+  $('#setup-hint').textContent = state.locked
+    ? '제작 중에는 옵션 변경이 잠깁니다. 가운데 새 제작 준비 버튼을 누르세요.'
+    : '설정을 모두 마쳤으면 가운데 제작하기 버튼을 누르세요.';
   $('#item-name').textContent = base.name;
   $('#base-category-label').textContent = `${base.group} / ${CATEGORY_LABELS[base.category] || base.category} / ${base.subType || '기본 유형'}`;
   $('#base-stats').textContent = `시연 아이템 레벨 ${state.itemLevel} (자동 고정) · ${describeBase(base)}`;
@@ -216,7 +216,7 @@ function render() {
   $('#goal-progress').textContent = `달성 ${progress.achieved.length}/${progress.total}${progress.complete ? ' · 목표 완료' : ''}`;
   $('#goal-list').innerHTML = (state.goals || []).map(id => {
     const achieved = progress.achieved.includes(id);
-    return `<div class="goal-row"><span class="${achieved ? 'achieved' : ''}">${achieved ? '✓ ' : '○ '}${escapeHTML(modById[id].name)}</span><button type="button" class="secondary remove-mod" data-goal-remove="${escapeHTML(id)}" aria-label="목표 삭제">삭제</button></div>`;
+    return `<div class="goal-row"><span class="${achieved ? 'achieved' : ''}">${achieved ? '✓ ' : '○ '}${escapeHTML(modById[id].effect||modById[id].name)}</span><button type="button" class="secondary remove-mod" data-goal-remove="${escapeHTML(id)}" aria-label="목표 삭제">삭제</button></div>`;
   }).join('') || '<p class="subtle">목표 속성을 추가해 주세요.</p>';
   $('#prefix-list').innerHTML = renderMods('prefix');
   $('#suffix-list').innerHTML = renderMods('suffix');
@@ -227,5 +227,6 @@ function render() {
   const used = Object.entries(state.usage).filter(([_, amount])=>amount>0);
   $('#usage').innerHTML = used.length ? used.map(([id, amount]) => `<div class="usage-row"><span>${escapeHTML(orbs.find(o=>o.id===id)?.name || omenById[id]?.name || id)}</span><strong>×${amount}</strong></div>`).join('') : '<p class="subtle">아직 사용한 재료가 없습니다.</p>';
   $('#logs').innerHTML = [...state.log].reverse().map(entry=>`<li class="${entry.success?'':'failed'}"><b>#${entry.order} ${escapeHTML(entry.action)}${entry.success?'':' · 오류'}</b>${escapeHTML(entry.detail)}${entry.omen ? '<br>징조 소모: ' + escapeHTML(entry.omen) : ''}</li>`).join('');
+  renderArchive();
 }
 setup();
