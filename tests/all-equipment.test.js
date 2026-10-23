@@ -49,9 +49,9 @@ test('속성별 티어를 선택할 수 있고 높은 단계 순서로 표시한
    assert.ok(family.tiers.every(t=>modsForBase(base,100).some(m=>m.id===t.id)));
  }
 });
-test('징조 45종과 심연 제작 재료 11종이 한글로 로드되고 미구현은 소모를 막는다',()=>{
+test('징조 45종과 심연 제작 재료 11종이 한글로 로드된다',()=>{
  assert.equal(omens.length,45);assert.equal(abyssCraftingMaterials.length,11);
- assert.ok(omens.filter(o=>o.implemented).length===6);
+ assert.ok(omens.filter(o=>o.implemented).length>=18);
  assert.ok(omens.every(o=>/[가-힣]/.test(o.name)));
  assert.ok(abyssCraftingMaterials.some(x=>x.name==='보존된 빗장뼈'));
 });
