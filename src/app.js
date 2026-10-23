@@ -312,6 +312,10 @@ function render() {
   }).join('') || '<p class="subtle">목표 속성을 추가해 주세요.</p>';
   $('#prefix-list').innerHTML = renderMods('prefix');
   $('#suffix-list').innerHTML = renderMods('suffix');
+  for(const kind of ['prefix','suffix']){
+    const count=Math.max(3,slotLimits(base,state.rarity)[kind]);
+    $(`#${kind}-list`).style.gridTemplateRows=`repeat(${count},minmax(0,1fr))`;
+  }
   $('#prefix-count').textContent = `${state.mods.filter(m => modById[m.id].kind === 'prefix').length}/${slotLimits(base,state.rarity).prefix}`;
   $('#suffix-count').textContent = `${state.mods.filter(m => modById[m.id].kind === 'suffix').length}/${slotLimits(base,state.rarity).suffix}`;
   document.querySelectorAll('[data-omen]').forEach(el => el.classList.toggle('active', el.dataset.omen === state.omenId));
