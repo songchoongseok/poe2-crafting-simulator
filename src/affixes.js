@@ -4,7 +4,15 @@ import { modClassesWeaponsA } from '../data/kr-mods-weapons-a.js';
 import { modClassesWeaponsB } from '../data/kr-mods-weapons-b.js';
 import { modClassesMisc } from '../data/kr-mods-misc.js';
 
-const classes = {...modClassesArmour,...modClassesWeaponsA,...modClassesWeaponsB,...modClassesMisc};
+const rawClasses = {...modClassesArmour,...modClassesWeaponsA,...modClassesWeaponsB,...modClassesMisc};
+// Modifier ids can repeat between item classes with different stats or Korean text.
+// Prefix with the item class so a saved item never resolves a different class's affix.
+const classes=Object.fromEntries(Object.entries(rawClasses).map(([classId,rows])=>[
+  classId,rows.map(m=>({
+    ...m,sourceId:m.id,id:`${classId}::${m.id}`,
+    level:modEligibility[m.id]?.level??-1,source:'GGPK/PoB2'
+  }))
+]));
 const categoryClass = Object.freeze({
   amulet:'Amulet', belt:'Belt',body:'Body_Armour',boots:'Boots',
   bow:'Bow',claw:'Claw',crossbow:'Crossbow',dagger:'Dagger',flail:'Flail',
@@ -13,11 +21,8 @@ const categoryClass = Object.freeze({
 });
 export const classModCounts = Object.fromEntries(Object.entries(classes).map(([id,mods])=>[id,mods.length]));
 export const allRealMods = Object.values(classes).flat().reduce((out,row)=>{
-  if(!Object.hasOwn(out,row.id))out[row.id]={
-    ...row,level:modEligibility[row.id]?.level??-1,source:'GGPK/PoB2'
-  };
-  return out;
-}, Object.create(null));
+  out[row.id]=row;return out;
+},Object.create(null));
 export function modClassOf(base) {
   if(!base)return null;
   if(base.category==='axe'||base.category==='mace'||base.category==='sword'){
@@ -64,7 +69,7 @@ export function tagsForBase(base){
 export function modsForBase(base,itemLevel=100){
   const classId=modClassOf(base), pool=classes[classId]||[],tags=tagsForBase(base);
   return pool.filter(m=>{
-    const elig=modEligibility[m.id];
+    const elig=modEligibility[m.sourceId];
     return elig && elig.level<=itemLevel && elig.tags.some(t=>tags.includes(t));
   }).map(m=>allRealMods[m.id]);
 }
