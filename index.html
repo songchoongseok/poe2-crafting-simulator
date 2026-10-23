@@ -25,8 +25,9 @@
       <label for="level">아이템 레벨 · 베이스 선택 시 자동 설정</label><input id="level" type="number" value="80" readonly aria-readonly="true">
       <p class="subtle">베이스의 장착 요구 레벨과 실제 드롭 아이템 레벨은 다릅니다. 지금은 화면 시연을 위해 장착 요구 레벨로 아이템 레벨을 고정합니다.</p>
       <h3>기존 속성 설정</h3>
-      <p class="subtle">시작 상태에서 입력한 속성은 재료 사용량에 포함하지 않습니다. 모든 일반 장비 종류의 한글 속성 후보를 사용합니다. 확률은 아직 시연용입니다.</p>
-      <select id="modifier"></select>
+      <p class="subtle">옵션 계열과 티어를 선택하세요. 초기 옵션은 재료 사용량에 포함되지 않습니다.</p>
+      <label for="mod-family">옵션 선택</label><select id="mod-family"></select>
+      <label for="modifier">티어 선택</label><select id="modifier"></select>
       <label class="inline"><input id="fractured" type="checkbox"> 분열된 속성으로 추가</label>
       <button id="add-mod" class="secondary full">+ 기존 속성 추가</button>
       <div id="setup-hint" class="hint">첫 오브를 사용하면 시작 아이템 설정이 잠깁니다.</div>
@@ -34,11 +35,16 @@
       <h2>목표 속성</h2>
       <p class="subtle">목표 속성을 직접 편집합니다. 목표 설정은 오브를 소모하지 않습니다.</p>
       <div id="goal-progress" class="hint"></div><div id="goal-list" class="goal"></div>
-      <label for="goal-modifier">목표 옵션 선택</label><select id="goal-modifier"></select><button id="goal-add" class="secondary full">+ 목표 옵션 추가</button>
+      <label for="goal-family">목표 옵션 선택</label><select id="goal-family"></select>
+      <label for="goal-modifier">목표 티어 선택</label><select id="goal-modifier"></select><button id="goal-add" class="secondary full">+ 목표 옵션 추가</button>
     </section>
 
     <section class="panel center">
-      <h2>② 현재 아이템</h2>
+      <div class="craft-heading"><h2>② 현재 아이템</h2><span id="craft-phase" class="hint">설정 중</span></div>
+      <div class="craft-actions">
+        <button id="start-craft" type="button">제작하기 · 설정 확정</button>
+        <button id="prepare-craft" type="button" class="secondary">새 제작 준비</button>
+      </div>
       <div class="item-card">
         <div class="item-details"><div class="item-title"><strong id="item-name">단검발 신발</strong><span id="rarity-label" class="rarity">마법</span></div>
         <p id="base-category-label" class="subtle"></p><p id="base-stats" class="subtle"></p><p id="craft-support-note" class="subtle"></p></div>
@@ -49,6 +55,13 @@
       <div id="orb-buttons" class="tools"></div>
       <h3>징조 <small>활성화 후 대상 오브 사용 시 소모</small></h3>
       <div id="omen-buttons" class="tools omens"></div>
+      <label for="omen-select">전체 징조 목록 (한국어)</label><select id="omen-select"></select>
+      <p id="omen-description" class="subtle"></p>
+      <button id="omen-activate" type="button" class="secondary full">선택한 징조 활성화</button>
+      <h3>심연 제작 재료</h3>
+      <label for="abyss-select">턱뼈 · 갈비뼈 · 빗장뼈 · 에센스</label><select id="abyss-select"></select>
+      <p id="abyss-description" class="subtle"></p>
+      <button id="abyss-apply" type="button" class="secondary full">심연 재료 사용 (규칙 검증 대기)</button>
       <div id="notice" role="status" aria-live="polite"></div>
     </section>
 
@@ -57,6 +70,8 @@
       <hr><h2>⑤ 제작 로그</h2>
       <p class="subtle">재료 미소모 오류도 원인과 함께 기록합니다.</p>
       <ol id="logs" class="logs"></ol>
+      <hr><h2>⑥ 이전 제작 이력</h2><p class="subtle">아이템 이름별로 묶어 표시합니다. 카드를 누르면 상세 이력이 열립니다.</p>
+      <div id="archive-list" class="archive-list"></div>
     </section>
   </main>
   <footer>POE2 한국어 베이스와 일반 속성 후보 데이터 사용 · 정확한 가중치와 특수 제작 규칙은 아직 검증되지 않았습니다.</footer>
