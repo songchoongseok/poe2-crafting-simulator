@@ -19,9 +19,9 @@ function restoreDesecration(d){
   if(!object(d)||typeof d.boneId!=='string'||!Object.hasOwn(boneById,d.boneId)||
     !['prefix','suffix'].includes(d.kind)||typeof d.revealed!=='boolean'||
     typeof d.rerolled!=='boolean'||!Array.isArray(d.offers)||
-    !Array.isArray(d.allowedIds)||d.offers.length>3||d.allowedIds.length>150||
-    d.offers.some(id=>!Object.hasOwn(abyssMods,id))||
-    d.allowedIds.some(id=>!Object.hasOwn(abyssMods,id)||abyssMods[id].kind!==d.kind)||
+    !Array.isArray(d.allowedIds)||d.offers.length>3||d.allowedIds.length>800||
+    d.offers.some(id=>!Object.hasOwn(modById,id))||
+    d.allowedIds.some(id=>!Object.hasOwn(modById,id)||modById[id].kind!==d.kind)||
     d.offers.some(id=>!d.allowedIds.includes(id)))throw Error('훼손 공개 정보가 잘못됐습니다.');
   return {boneId:d.boneId,kind:d.kind,offers:[...d.offers],
     allowedIds:[...d.allowedIds],revealed:d.revealed,rerolled:d.rerolled};
