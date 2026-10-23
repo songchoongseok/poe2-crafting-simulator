@@ -2,12 +2,13 @@ import { abyssPools1 } from '../data/abyss-pools-1.js';
 import { abyssPools2 } from '../data/abyss-pools-2.js';
 import { abyssPools3 } from '../data/abyss-pools-3.js';
 import { abyssPools4 } from '../data/abyss-pools-4.js';
-import { abyssCraftingMaterials } from '../data/demo.js';
+import { abyssCraftingMaterials, omens } from '../data/demo.js';
 import { modClassOf, groupsOf, allRealMods, modsForBase } from './affixes.js';
 import { modifiers as legacyMods } from '../data/demo.js';
 
 const pools={...abyssPools1,...abyssPools2,...abyssPools3,...abyssPools4};
 export const boneById=Object.fromEntries(abyssCraftingMaterials.map(x=>[x.id,x]));
+const omenNames=Object.fromEntries(omens.map(x=>[x.id,x.name]));
 export const abyssMods=Object.values(pools).flatMap(group=>[...group.normal,...group.breach])
   .reduce((acc,m)=>{acc[m.id]={...m,desecrated:true,source:'GGPK-Abyss'};return acc},Object.create(null));
 export const HIDDEN_PREFIX='abyss:hidden:prefix',HIDDEN_SUFFIX='abyss:hidden:suffix';
@@ -30,7 +31,7 @@ function success(state,name,mods,detail,spent,omenUsed,patch={}){
   if(omenUsed){s.usage[omenUsed]=(s.usage[omenUsed]||0)+1;s.omenId=null}
   Object.assign(s,patch);
   s.log.push({order:s.log.length+1,action:name,success:true,detail,
-    omen:omenUsed||null,stateAfter:{rarity:s.rarity,mods:clone(mods)}});
+    omen:omenUsed?omenNames[omenUsed]:null,stateAfter:{rarity:s.rarity,mods:clone(mods)}});
   s.notice=name+': '+detail;return {state:s,ok:true};
 }
 export function isBoneForBase(base,boneId){
@@ -143,6 +144,6 @@ export function rerollDesecration(state,rng=Math.random){
   if(pool.length<3)return fail(state,name,'다시 추첨할 후보가 부족합니다.');
   const s=clone(state);s.desecration={...d,offers:pickOffers(pool,rng),rerolled:true};
   s.usage[s.omenId]=(s.usage[s.omenId]||0)+1;s.omenId=null;
-  s.log.push({order:s.log.length+1,action:name,success:true,detail:'훼손 공개 후보 세 가지 다시 추첨'});
+  s.log.push({order:s.log.length+1,action:name,success:true,detail:'훼손 공개 후보 세 가지 다시 추첨',omen:name});
   s.notice='훼손 공개 후보를 다시 추첨했습니다.';return {state:s,ok:true};
 }

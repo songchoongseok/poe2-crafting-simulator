@@ -50,6 +50,7 @@ test('좌측 강령술 징조는 훼손 접두어만 만들고 실제 사용 수
  assert.equal(modById[r.state.mods[0].id].kind,'prefix');
  assert.equal(r.state.usage['omen-of-sinistral-necromancy'],1);
  assert.equal(r.state.omenId,null);
+ assert.equal(r.state.log.at(-1).omen,'좌측 강령술의 징조');
 });
 test('심연의 메아리의 징조 활성화 → 훼손 선택지 다시 추첨 및 소모',()=>{
  const base=baseOf('boots'),r=applyBone(ready(base),base,'preserved-rib',()=>0).state;
@@ -58,6 +59,7 @@ test('심연의 메아리의 징조 활성화 → 훼손 선택지 다시 추첨
  assert.equal(reroll.ok,true);
  assert.equal(reroll.state.usage['omen-of-abyssal-echoes'],1);
  assert.equal(reroll.state.desecration.rerolled,true);
+ assert.equal(reroll.state.log.at(-1).omen,'심연의 메아리의 징조');
  assert.equal(rerollDesecration(reroll.state).ok,false);
 });
 test('빛의 징조 + 소멸은 훼손 속성을 제거하고 새 뼈 제작을 허용한다',()=>{
