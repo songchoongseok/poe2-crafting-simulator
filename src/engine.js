@@ -1,8 +1,10 @@
 import { bases, modifiers, orbs, omens } from '../data/demo.js';
 import { supportsDemoCrafting } from './catalogue.js';
 import { allRealMods, modsForBase, allowedMod, groupsOf, hasGroupConflict, rollAffixText } from './affixes.js';
+import { abyssMods, hiddenMods, hasDesecration } from './abyss.js';
 
-export const modById = { ...Object.fromEntries(modifiers.map(m => [m.id, m])), ...allRealMods };
+export const modById = { ...Object.fromEntries(modifiers.map(m => [m.id, m])), ...allRealMods,
+  ...abyssMods,...hiddenMods };
 export const orbById = Object.fromEntries(orbs.map(o => [o.id, o]));
 export const omenById = Object.fromEntries(omens.map(o => [o.id, o]));
 export const baseById = Object.fromEntries(bases.map(b => [b.id, b]));
@@ -25,15 +27,16 @@ export function validateStart({ baseId, itemLevel, rarity, mods }) {
   if (rarity === 'rare' && mods.length > 6) return '희귀 아이템의 일반 속성은 최대 6개입니다.';
   const keys = new Set(); const groups = new Set();
   for (const mod of mods) {
-    const m = modById[mod.id];
+    const m = modById[mod.id], abyssal=Boolean(abyssMods[mod.id]||hiddenMods[mod.id]);
     if (!m) return `알 수 없는 속성: ${mod.id}`;
-    if (m.level > itemLevel) return `${m.name}: 요구 아이템 레벨 ${m.level} 미달입니다.`;
+    if (!abyssal && m.level > itemLevel) return `${m.name}: 요구 아이템 레벨 ${m.level} 미달입니다.`;
     const legacy = modifiers.some(d => d.id === m.id);
-    if (legacy ? !supportsDemoCrafting(baseById[baseId]) : !allowedMod(baseById[baseId],m,itemLevel))
+    if (!abyssal && (legacy ? !supportsDemoCrafting(baseById[baseId]) : !allowedMod(baseById[baseId],m,itemLevel)))
       return `${m.name}: 해당 베이스에 부여할 수 없는 속성입니다.`;
     if (keys.has(m.id) || groupsOf(m).some(g => groups.has(g)))
       return `속성 중복 또는 그룹 충돌: ${m.name}`;
     if (rarity !== 'rare' && mod.fractured) return '시연에서는 희귀 아이템에만 분열 속성 지정이 가능합니다.';
+    if(abyssal && rarity!=='rare')return '훼손 속성은 희귀 아이템에서만 유지할 수 있습니다.';
     keys.add(m.id); groupsOf(m).forEach(g => groups.add(g));
   }
   for (const kind of ['prefix', 'suffix']) {
@@ -67,6 +70,7 @@ function fail(state, action, reason) {
 function finish(state, orb, mods, rarity, detail, omenUsed) {
   const s = clone(state);
   s.mods = mods; s.rarity = rarity;
+  if (!hasDesecration(mods)) s.desecration=null;
   s.locked = true; s.attempts++;
   s.usage[orb.id] = (s.usage[orb.id] || 0) + 1;
   if (omenUsed) {
@@ -82,6 +86,7 @@ function finish(state, orb, mods, rarity, detail, omenUsed) {
 export function applyOrb(state, orbId, rng = Math.random) {
   const orb = orbById[orbId];
   if (!orb) return fail(state, orbId, '알 수 없는 오브입니다.');
+  if (state.corrupted) return fail(state, orb.name, '타락한 아이템에는 일반 오브 제작을 진행할 수 없습니다.');
   const valid = validateStart(state);
   if (valid) return fail(state, orb.name, `현재 아이템이 유효하지 않습니다: ${valid}`);
   // Every regular equipment class uses its PoB2 eligibility-filtered Korean affix pool.
@@ -93,7 +98,7 @@ export function applyOrb(state, orbId, rng = Math.random) {
     !['prefix','suffix'].includes(activeOmen.kind))
     return fail(state,orb.name,'징조 적용 조건이 불명확합니다.');
   let nextRarity = state.rarity;
-  let added = null, removed = null, omenUsed = null;
+  let added = null, removed = null, omenUsed = null;const changes=[];
   if (orbId === 'transmute') {
     if (nextRarity !== 'normal') return fail(state, orb.name, '일반 아이템에만 사용할 수 있습니다.');
     nextRarity = 'magic';
@@ -116,34 +121,56 @@ export function applyOrb(state, orbId, rng = Math.random) {
     if (!added) return fail(state, orb.name, '추가 가능한 속성 후보가 없습니다.');
     mods.push({ id: added.id, fractured: false, valueText: rollAffixText(added,rng) });
   } else if (orbId === 'exalt') {
-    if (nextRarity !== 'rare') return fail(state, orb.name, '이 시연에서는 희귀 아이템에만 사용할 수 있습니다.');
-    const exaltOmen=activeOmen?.implemented && activeOmen.orbId==='exalt' ? activeOmen : null;
-    const exaltPool=candidateMods(mods, state.itemLevel, nextRarity, state.baseId)
-      .filter(m=>!exaltOmen || m.kind===exaltOmen.kind);
-    added=pick(exaltPool,rng);
-    if(exaltOmen && added)omenUsed=exaltOmen.id;
-    if (!added) return fail(state, orb.name, '빈자리 또는 추가 가능한 속성 후보가 없습니다.');
-    mods.push({ id: added.id, fractured: false, valueText: rollAffixText(added,rng) });
-  } else if (orbId === 'annul') {
-    if (nextRarity === 'normal') return fail(state, orb.name, '제거할 속성이 없습니다.');
-    const active=activeOmen?.implemented && activeOmen.orbId==='annul'?activeOmen:null;
-    const candidates = mods.filter(x => !x.fractured && (!active || active.kind === modById[x.id].kind));
-    if (!candidates.length) return fail(state, orb.name, active ? '징조 조건에 맞는 제거 가능한 속성이 없습니다.' : '제거 가능한 속성이 없습니다.');
-    removed = pick(candidates, rng);
-    mods.splice(mods.findIndex(x => x.id === removed.id), 1);
-    if (active) omenUsed = active.id;
-  } else if (orbId === 'chaos') {
     if (nextRarity !== 'rare') return fail(state, orb.name, '희귀 아이템에만 사용할 수 있습니다.');
-    const candidates = mods.filter(x => !x.fractured);
-    if (!candidates.length) return fail(state, orb.name, '교체 가능한 속성이 없습니다.');
-    removed = pick(candidates, rng);
-    mods.splice(mods.findIndex(x => x.id === removed.id), 1);
-    added = pick(candidateMods(mods, state.itemLevel, nextRarity, state.baseId), rng);
-    if (!added) return fail(state, orb.name, '교체할 새 속성 후보가 없습니다.');
-    mods.push({ id: added.id, fractured: false, valueText: rollAffixText(added,rng) });
+    const omen=activeOmen?.implemented&&activeOmen.orbId==='exalt'?activeOmen:null;
+    const count=omen?.effectId==='addTwo'?2:1;
+    for(let i=0;i<count;i++){
+      const pool=candidateMods(mods,state.itemLevel,nextRarity,state.baseId)
+        .filter(m=>!omen?.kind||m.kind===omen.kind);
+      const chosen=pick(pool,rng);
+      if(!chosen)return fail(state,orb.name,
+        count===2?'상위 찬미의 징조로 두 가지 속성을 추가할 후보/빈자리가 부족합니다.':'추가 가능한 속성이 없습니다.');
+      added=chosen;
+      const item={id:chosen.id,fractured:false,valueText:rollAffixText(chosen,rng)};
+      mods.push(item);changes.push('추가 '+item.valueText);
+    }
+    if(omen)omenUsed=omen.id;
+  } else if (orbId === 'annul') {
+    if(nextRarity==='normal')return fail(state,orb.name,'제거할 속성이 없습니다.');
+    const omen=activeOmen?.implemented&&activeOmen.orbId==='annul'?activeOmen:null;
+    const count=omen?.effectId==='removeTwo'?2:1;
+    for(let i=0;i<count;i++){
+      const eligible=mods.filter(x=>!x.fractured &&
+        (!omen?.kind||modById[x.id].kind===omen.kind) &&
+        (omen?.effectId!=='removeDesecrated'||x.desecrated));
+      if(!eligible.length)return fail(state,orb.name,
+        count===2?'상위 소멸의 징조로 제거할 속성 2개가 없습니다.':'징조 조건에 맞는 제거 가능한 속성이 없습니다.');
+      removed=pick(eligible,rng);mods.splice(mods.findIndex(x=>x.id===removed.id),1);
+      changes.push('제거 '+(removed.valueText||modById[removed.id]?.effect||modById[removed.id]?.name));
+    }
+    if(omen)omenUsed=omen.id;
+  } else if (orbId === 'chaos') {
+    if(nextRarity!=='rare')return fail(state,orb.name,'희귀 아이템에만 사용할 수 있습니다.');
+    const omen=activeOmen?.implemented&&activeOmen.orbId==='chaos'?activeOmen:null;
+    let candidates=mods.filter(x=>!x.fractured && (!omen?.kind||modById[x.id].kind===omen.kind));
+    if(omen?.effectId==='lowestLevel'&&candidates.length){
+      const min=Math.min(...candidates.map(m=>modById[m.id].level??0));
+      candidates=candidates.filter(m=>(modById[m.id].level??0)===min);
+    }
+    if(!candidates.length)return fail(state,orb.name,'징조 조건에 맞는 교체 가능한 속성이 없습니다.');
+    removed=pick(candidates,rng);mods.splice(mods.findIndex(x=>x.id===removed.id),1);
+    added=pick(candidateMods(mods,state.itemLevel,nextRarity,state.baseId),rng);
+    if(!added)return fail(state,orb.name,'교체할 새 속성 후보가 없습니다.');
+    const item={id:added.id,fractured:false,valueText:rollAffixText(added,rng)};
+    mods.push(item);
+    changes.push('제거 '+(removed.valueText||modById[removed.id]?.effect||modById[removed.id]?.name));
+    changes.push('추가 '+item.valueText);
+    if(omen)omenUsed=omen.id;
   } else return fail(state, orb.name, '미구현 오브입니다.');
-  const detail = [removed && `제거 ${removed.valueText || modById[removed.id].effect || modById[removed.id].name}`,
-    added && `추가 ${mods.find(x=>x.id===added.id)?.valueText || added.effect || added.name}`].filter(Boolean).join(' / ');
+  const detail=changes.length?changes.join(' / '):[
+    removed && `제거 ${removed.valueText||modById[removed.id].effect||modById[removed.id].name}`,
+    added && `추가 ${mods.find(x=>x.id===added.id)?.valueText||added.effect||added.name}`
+  ].filter(Boolean).join(' / ');
   return finish(state, orb, mods, nextRarity, detail, omenUsed);
 }
 
