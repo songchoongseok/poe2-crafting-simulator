@@ -51,6 +51,7 @@ input[type=search]{background:var(--raised);color:var(--text);border:1px solid v
 .archive-usage{font-size:12px;color:#b8cbe7;margin:9px 0 3px;overflow-wrap:anywhere}
 .archive-session .logs{max-height:250px}
 #omen-description,#abyss-description{min-height:50px;border-left:2px solid var(--stroke);padding-left:9px;white-space:pre-line;line-height:1.5}
+#essence-description{min-height:50px;border-left:2px solid var(--stroke);padding-left:9px;white-space:pre-line;line-height:1.5}
 .tools.omens{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:700px){.craft-actions button{font-size:12px}}
 
@@ -59,6 +60,7 @@ input[type=search]{background:var(--raised);color:var(--text);border:1px solid v
 .item-card[data-rarity="normal"]{border:3px solid #d2d7e1;box-shadow:0 0 0 1px #6b7584;background:#171d28}
 .item-card[data-rarity="magic"]{border:3px solid #669bff;box-shadow:0 0 18px #386bdd35;background:#101d35}
 .item-card[data-rarity="rare"]{border:3px solid #e4be6a;box-shadow:0 0 18px #c8942a35;background:#231c17}
+.item-card[data-rarity="unique"]{border:3px solid #bd8b58;box-shadow:0 0 18px #bf7f3a40;background:#251b14}
 .item-card[data-rarity="normal"] .item-title{color:#e3e7ee}
 .item-card[data-rarity="magic"] .item-title{color:#98bfff}
 .item-card[data-rarity="rare"] .item-title{color:#f7d88e}

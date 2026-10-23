@@ -1,5 +1,8 @@
 import { orbs, omens, abyssCraftingMaterials, DEMO_NOTICE } from '../data/demo.js';
-import { modById, omenById, baseById, SLOT_LIMITS, makeInitial, validateStart, setInitial, setGoals, goalProgress, applyOrb, toggleOmen } from './engine.js';
+import { modById, omenById, baseById, SLOT_LIMITS, makeInitial, validateStart, setInitial, setGoals, goalProgress, applyOrb, applyEssence, toggleOmen } from './engine.js';
+import { essenceCatalogue } from '../data/poe2db-essences.js';
+import { essenceById, essenceOptionFor } from './essences.js';
+import { catalysts } from '../data/catalysts.js';
 
 import { parseSession, serializeSession } from './session.js';
 import { createBasePicker } from './base-picker.js';
@@ -13,7 +16,7 @@ function newDraft(baseId='daggerfoot'){
   const base=baseById[baseId] || baseById.daggerfoot;
   return {...makeInitial(),baseId:base.id,itemLevel:Math.max(1,base.requiredLevel||1),
     rarity:'normal',mods:[],goals:[],omenId:null,usage:{},log:[],attempts:0,
-    locked:false,desecration:null,corrupted:false,notice:'옵션과 티어를 설정한 뒤 가운데 제작하기 버튼을 누르세요.'};
+    locked:false,desecration:null,desecrations:null,corrupted:false,notice:'옵션과 티어를 설정한 뒤 가운데 제작하기 버튼을 누르세요.'};
 }
 let state=newDraft(),picker,affixCache=[];
 const ARCHIVE_KEY='poe2-crafting-sessions-v1';
@@ -47,7 +50,9 @@ function setup() {
   $('#disclaimer').textContent = DEMO_NOTICE;
   // Pools are populated for each newly selected equipment base in render().
   $('#omen-select').replaceChildren(...omens.map(o=>new Option(`${o.name}${o.implemented?'':' · 미구현'}`,o.id)));
-  $('#abyss-select').replaceChildren(...abyssCraftingMaterials.map(x=>new Option(x.name,x.id)));
+  $('#essence-select').replaceChildren(...essenceCatalogue.map(x=>new Option(x.name,x.id)));
+  $('#catalyst-type').replaceChildren(new Option('없음',''),...catalysts.map(x=>new Option(x.name,x.id)));
+  $('#abyss-select').replaceChildren(...abyssCraftingMaterials.filter(x=>x.id!=='essence-of-the-abyss').map(x=>new Option(x.name,x.id)));
   $('#orb-buttons').innerHTML = orbs.map(o => `<button data-orb="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   $('#omen-buttons').innerHTML = omens.filter(o=>o.implemented).map(o => `<button data-omen="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   picker = createBasePicker(id => {prepareNew(id);return true;});
@@ -55,6 +60,15 @@ function setup() {
   $('#rarity').addEventListener('change', e => {
     const result = setInitial(state, { rarity: e.target.value, mods: [] });
     if (result.ok) state = result.state; else showError(result.reason); render();
+  });
+  $('#catalyst-type').addEventListener('change',e=>{
+    const result=setInitial(state,{catalystType:e.target.value||null,
+      catalystQuality:e.target.value?state.catalystQuality:0});
+    if(result.ok)state=result.state;else showError(result.reason);render();
+  });
+  $('#catalyst-quality').addEventListener('change',e=>{
+    const result=setInitial(state,{catalystQuality:Number(e.target.value)});
+    if(result.ok)state=result.state;else showError(result.reason);render();
   });
 
   $('#add-mod').addEventListener('click', () => {
@@ -75,6 +89,11 @@ function setup() {
   });
   $('#omen-select').addEventListener('change', updateOmenDescription);
   $('#omen-activate').addEventListener('click',()=>activateOmen($('#omen-select').value));
+  $('#essence-select').addEventListener('change',updateEssenceDescription);
+  $('#essence-apply').addEventListener('click',()=>{
+    if(!state.locked)return showError('먼저 제작하기 버튼을 누르세요.');
+    state=applyEssence(state,$('#essence-select').value).state;render();
+  });
   $('#abyss-select').addEventListener('change',updateAbyssDescription);
   $('#abyss-apply').addEventListener('click',()=>{
     if(!state.locked)return showError('먼저 제작하기 버튼으로 시작 아이템을 확정하세요.');
@@ -97,7 +116,7 @@ function setup() {
     render();
   });
   $('#prepare-craft').addEventListener('click',()=>prepareNew());
-  updateOmenDescription();updateAbyssDescription();
+  updateOmenDescription();updateAbyssDescription();updateEssenceDescription();
   $('#goal-add').addEventListener('click', () => {
     const result = setGoals(state, [...(state.goals || []), $('#goal-modifier').value]);
     if (result.ok) state = result.state; else showError(result.reason);
@@ -140,11 +159,17 @@ function updateOmenDescription(){
   const o=omens.find(x=>x.id===$('#omen-select').value);
   $('#omen-description').textContent=o?o.description+(o.implemented?' · 효과 구현':' · 제작 효과 미구현'):'';
 }
+function updateEssenceDescription(){
+  const essence=essenceById[$('#essence-select').value];
+  const option=essence&&essenceOptionFor(baseById[state.baseId],essence);
+  $('#essence-description').textContent=essence?
+    (option?`${essence.action}\n${option.target}: ${option.effect}`:
+      `${essence.action}\n이 베이스에는 확정 속성 대상이 없어 사용할 수 없습니다.`):'';
+}
 function updateAbyssDescription(){
   const o=abyssCraftingMaterials.find(x=>x.id===$('#abyss-select').value);
   $('#abyss-description').textContent=o?(o.description+
-    (o.id==='essence-of-the-abyss'?' · 확정 속성 미검증 · 사용 불가':
-      (isBoneForBase(baseById[state.baseId],o.id)?' · 이 장비에 사용 가능':' · 해당 장비에는 사용 불가'))):'';
+    (isBoneForBase(baseById[state.baseId],o.id)?' · 이 장비에 사용 가능':' · 해당 장비에는 사용 불가')):'';
 }
 function renderTierOptions(which){
   const family=$(`#${which}-family`), tier=$(`#${which==='mod'?'modifier':'goal-modifier'}`);
@@ -172,7 +197,7 @@ function renderArchive(){
     const name=escapeHTML(sessions[0].name);
     return `<details class="archive-card"><summary>${name} <span>${sessions.length}회 제작</span></summary>
       ${sessions.map(a=>`<details class="archive-session"><summary>${escapeHTML(a.createdAt)} · ${a.attempts}회 오브 사용</summary>
-      <div class="archive-usage">${Object.entries(a.usage).map(([k,n])=>`${escapeHTML(orbs.find(o=>o.id===k)?.name||omenById[k]?.name||abyssCraftingMaterials.find(o=>o.id===k)?.name||k)} ×${n}`).join(' · ')||'재료 사용 없음'}</div>
+      <div class="archive-usage">${Object.entries(a.usage).map(([k,n])=>`${escapeHTML(orbs.find(o=>o.id===k)?.name||omenById[k]?.name||abyssCraftingMaterials.find(o=>o.id===k)?.name||essenceById[k]?.name||k)} ×${n}`).join(' · ')||'재료 사용 없음'}</div>
       <ol class="logs">${a.logs.map(l=>`<li><b>#${l.order} ${escapeHTML(l.action)}</b>${escapeHTML(l.detail)}</li>`).join('')}</ol>
       </details>`).join('')}</details>`;
   }).join('')||'<p class="subtle">보관된 제작 이력이 없습니다.</p>';
@@ -203,6 +228,10 @@ function renderMods(kind) {
 function render() {
   const base = baseById[state.baseId];
   $('#rarity').value = state.rarity; $('#level').value = state.itemLevel;
+  $('#catalyst-type').value=state.catalystType||'';
+  $('#catalyst-quality').value=state.catalystQuality||0;
+  $('#catalyst-type').disabled=state.locked||!['ring','amulet'].includes(base.category);
+  $('#catalyst-quality').disabled=state.locked||!['ring','amulet'].includes(base.category);
   picker.setLocked(false); // Changing equipment opens a new draft and archives the prior session.
   $('#rarity').disabled=state.locked;
   const pool=modsForBase(base,state.itemLevel);
@@ -218,17 +247,25 @@ function render() {
   $('#item-name').textContent = base.name;
   $('#base-category-label').textContent = `${base.group} / ${CATEGORY_LABELS[base.category] || base.category} / ${base.subType || '기본 유형'}`;
   $('#base-stats').textContent = `시연 아이템 레벨 ${state.itemLevel} (자동 고정) · ${describeBase(base)}`;
+  if(state.sanctified)$('#base-stats').textContent+=' · 축성됨';
+  if(state.corrupted)$('#base-stats').textContent+=' · 타락됨';
+  if(state.implicitRoll!==undefined&&state.implicitRoll!==null)$('#base-stats').textContent+=' · 고정 속성 수치 재추첨됨';
+  if(state.catalystQuality)$('#base-stats').textContent+=` · ${catalysts.find(c=>c.id===state.catalystType)?.name||'기폭제'} ${state.catalystQuality}%`;
   $('#craft-support-note').textContent = pool.length
     ? `한국어 일반 속성 후보 ${pool.length}종 · 등장 비율은 미검증, 현재 균등 추첨`
     : '이 베이스에 사용 가능한 일반 속성 후보가 확인되지 않아 제작을 차단합니다.';
   $('#rarity-label').textContent = ({ normal:'일반', magic:'마법', rare:'희귀' })[state.rarity];
+  if(state.rarity==='unique')$('#rarity-label').textContent='고유';
+  if(state.destroyed)$('#rarity-label').textContent='파괴됨';
   $('#item-card').dataset.rarity=state.rarity;
   $('#item-card').classList.toggle('has-desecration',state.mods.some(m=>m.desecrated));
   updateAbyssDescription();
-  const d=state.desecration;
+  updateEssenceDescription();
+  const d=state.desecrations?.find(x=>!x.revealed)||state.desecration;
   const awaiting=Boolean(d&&!d.revealed&&d.offers?.length);
   $('#abyss-reveal').innerHTML=awaiting
-    ? '<strong>영혼의 우물 · 훼손 옵션 선택</strong><p>세 가지 중 하나를 선택해 훼손 속성을 공개합니다.</p>'+
+    ? '<strong>영혼의 우물 · 훼손 옵션 선택</strong><p>세 가지 중 하나를 선택해 훼손 속성을 공개합니다.'+
+      (state.desecrations?' 남은 공개 '+state.desecrations.filter(x=>!x.revealed).length+'개':'')+'</p>'+
       d.offers.map((id,i)=>`<button type="button" data-reveal="${escapeHTML(id)}">${i+1}. ${escapeHTML(modById[id]?.effect||'알 수 없는 속성')}</button>`).join('')
     : '';
   $('#abyss-reroll').hidden=!awaiting||d.rerolled;
@@ -246,7 +283,7 @@ function render() {
   document.querySelectorAll('[data-omen]').forEach(el => el.classList.toggle('active', el.dataset.omen === state.omenId));
   $('#notice').textContent = state.notice; $('#notice').classList.toggle('error',state.notice.startsWith('사용 불가'));
   const used = Object.entries(state.usage).filter(([_, amount])=>amount>0);
-  $('#usage').innerHTML = used.length ? used.map(([id, amount]) => `<div class="usage-row"><span>${escapeHTML(orbs.find(o=>o.id===id)?.name || omenById[id]?.name || abyssCraftingMaterials.find(o=>o.id===id)?.name || id)}</span><strong>×${amount}</strong></div>`).join('') : '<p class="subtle">아직 사용한 재료가 없습니다.</p>';
+  $('#usage').innerHTML = used.length ? used.map(([id, amount]) => `<div class="usage-row"><span>${escapeHTML(orbs.find(o=>o.id===id)?.name || omenById[id]?.name || abyssCraftingMaterials.find(o=>o.id===id)?.name || essenceById[id]?.name || id)}</span><strong>×${amount}</strong></div>`).join('') : '<p class="subtle">아직 사용한 재료가 없습니다.</p>';
   $('#logs').innerHTML = [...state.log].reverse().map(entry=>`<li class="${entry.success?'':'failed'}"><b>#${entry.order} ${escapeHTML(entry.action)}${entry.success?'':' · 오류'}</b>${escapeHTML(entry.detail)}${entry.omen ? '<br>징조 소모: ' + escapeHTML(entry.omen) : ''}</li>`).join('');
   renderArchive();
 }

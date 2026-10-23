@@ -88,7 +88,7 @@ export function rollAffixText(mod,rng=Math.random){
   // The GGPK text uses parenthesized (min-max) spans. This samples each span only
   // for UI presentation, independently; it does NOT imply official correlated rolls.
   const roll=(min,max)=>Math.min(max,Math.max(min,min+Math.floor(rng()*(max-min+1))));
-  return effect.replace(/\((-?\d+)-(-?\d+)\)/g,(_whole,a,b)=>{
+  return effect.replace(/\((-?\d+)[-—](-?\d+)\)/g,(_whole,a,b)=>{
     const lo=Number(a),hi=Number(b);return String(roll(Math.min(lo,hi),Math.max(lo,hi)));
   });
 }

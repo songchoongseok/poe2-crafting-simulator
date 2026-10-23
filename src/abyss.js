@@ -18,6 +18,11 @@ export const hiddenMods={
   [HIDDEN_SUFFIX]:{id:HIDDEN_SUFFIX,kind:'suffix',level:1,name:'미공개 훼손 접미어',
     effect:'미공개 훼손 접미어 · 영혼의 우물에서 공개',group:['abyss_hidden']}
 };
+for(const kind of ['prefix','suffix'])for(let n=1;n<=3;n++){
+  const id=`abyss:hidden:${kind}:${n}`;
+  hiddenMods[id]={id,kind,level:1,name:`미공개 훼손 ${kind==='prefix'?'접두어':'접미어'} ${n}`,
+    effect:`미공개 훼손 ${kind==='prefix'?'접두어':'접미어'} · 영혼의 우물에서 공개`,group:[id]};
+}
 const clone=x=>JSON.parse(JSON.stringify(x));
 const sample=(items,rng)=>items[Math.min(items.length-1,Math.max(0,Math.floor(rng()*items.length)))];
 function fail(state,name,reason){
@@ -48,11 +53,12 @@ export function abyssPoolFor(base,boneId){
   return [...group.normal,...(boneId==='altered-collarbone'?group.breach:[])];
 }
 export function hasDesecration(mods){
-  return mods.some(m=>m.desecrated||m.id===HIDDEN_PREFIX||m.id===HIDDEN_SUFFIX||
+  return mods.some(m=>m.desecrated||m.id.startsWith('abyss:hidden:')||
     Boolean(abyssMods[m.id]));
 }
 export function hiddenKind(mod){
-  return mod.id===HIDDEN_PREFIX?'prefix':mod.id===HIDDEN_SUFFIX?'suffix':null;
+  return mod.id.startsWith('abyss:hidden:prefix')?'prefix':
+    mod.id.startsWith('abyss:hidden:suffix')?'suffix':null;
 }
 const kindOf=m=>m.kind||hiddenKind(m)||abyssMods[m.id]?.kind||allRealMods[m.id]?.kind||legacyMods.find(x=>x.id===m.id)?.kind||null;
 const necromancy={ 'omen-of-sinistral-necromancy':'prefix','omen-of-dextral-necromancy':'suffix' };
@@ -70,16 +76,38 @@ export function applyBone(state,base,boneId,rng=Math.random){
   const material=boneById[boneId];
   if(!material)return fail(state,boneId,'등록되지 않은 심연 재료입니다.');
   if(boneId==='essence-of-the-abyss')
-    return fail(state,material.name,'심연의 에센스는 확정 속성 매핑이 미검증이므로 아직 사용할 수 없습니다.');
+    return fail(state,material.name,'심연의 에센스는 에센스 제작 메뉴에서 사용하세요.');
   if(!isBoneForBase(base,boneId))
     return fail(state,material.name,'이 재료는 해당 장비 종류에 사용할 수 없습니다.');
   if(!state.locked)return fail(state,material.name,'제작하기 버튼으로 먼저 시작 아이템을 확정하세요.');
   if(state.rarity!=='rare')return fail(state,material.name,'심연 뼈는 희귀 장비에만 사용 가능합니다.');
   if(state.corrupted)return fail(state,material.name,'타락된 장비에는 이 작업을 지원하지 않습니다.');
-  if(hasDesecration(state.mods))return fail(state,material.name,'이미 훼손 속성이 있는 장비에는 다시 훼손할 수 없습니다.');
+  const omen=state.omenId;
+  if(hasDesecration(state.mods)&&omen!=='omen-of-putrefaction')return fail(state,material.name,'이미 훼손 속성이 있는 장비에는 다시 훼손할 수 없습니다.');
   if(boneId.startsWith('gnawed-')&&state.itemLevel>64)
     return fail(state,material.name,'갉힌 뼈는 아이템 레벨 64 이하만 사용할 수 있습니다.');
-  const omen=state.omenId,kindRestriction=necromancy[omen]||null,faction=factions[omen]||null;
+  const kindRestriction=necromancy[omen]||null,faction=factions[omen]||null;
+  if(omen==='omen-of-putrefaction'){
+    const mods=clone(state.mods.filter(m=>m.fractured));
+    const pool=modsForBase(base,state.itemLevel);
+    const entries=[];
+    for(const kind of ['prefix','suffix']){
+      const reserved=mods.filter(m=>kindOf(m)===kind).length;
+      for(let n=1;n<=3-reserved;n++){
+        const id=`abyss:hidden:${kind}:${n}`;
+        const candidates=pool.filter(m=>m.kind===kind&&!mods.some(x=>{
+          const existing=allRealMods[x.id]||legacyMods.find(y=>y.id===x.id);
+          return existing&&groupsOf(existing).some(g=>groupsOf(m).includes(g));
+        }));
+        if(candidates.length<3)return fail(state,material.name,'훼손 공개 후보가 3개보다 적어 실행할 수 없습니다.');
+        mods.push({id,fractured:false,desecrated:true,unrevealed:true});
+        entries.push({slotId:id,boneId,kind,offers:pickOffers(candidates,rng),
+          allowedIds:candidates.map(m=>m.id),revealed:false,rerolled:false});
+      }
+    }
+    return success(state,material.name,mods,`${entries.length}개 미공개 속성 생성 / 아이템 타락`,
+      boneId,omen,{desecration:null,desecrations:entries,corrupted:true});
+  }
   if(faction&&base.group==='방어구')
     return fail(state,material.name,'해당 징조의 세력 강제 효과는 이 방어구에 적용할 수 없습니다.');
   // At the Well of Souls both ordinary and abyss-exclusive affixes may be offered.
@@ -116,6 +144,7 @@ export function applyBone(state,base,boneId,rng=Math.random){
   return success(state,material.name,mods,detail,boneId,consume,{desecration:nextData});
 }
 export function revealDesecration(state,optionId,rng=Math.random){
+  if(state.desecrations?.some(d=>!d.revealed))return revealBatchDesecration(state,optionId,rng);
   if(!state.locked)return fail(state,'영혼의 우물','제작을 시작해야 합니다.');
   const data=state.desecration;
   if(!data||data.revealed||!Array.isArray(data.offers))
@@ -134,15 +163,45 @@ export function revealDesecration(state,optionId,rng=Math.random){
     stateAfter:{rarity:s.rarity,mods:clone(mods)}});s.notice='훼손 속성 공개: '+shown;
   return {state:s,ok:true};
 }
+function revealBatchDesecration(state,optionId,rng){
+  const s=clone(state),entries=s.desecrations;
+  const entry=entries.find(d=>!d.revealed);
+  if(!entry||!entry.offers.includes(optionId))return fail(state,'영혼의 우물','현재 선택지에 없는 속성입니다.');
+  const mod=allRealMods[optionId]||abyssMods[optionId];
+  if(!mod)return fail(state,'영혼의 우물','확인되지 않은 속성입니다.');
+  const position=s.mods.findIndex(x=>x.id===entry.slotId);
+  if(position<0)return fail(state,'영혼의 우물','미공개 속성 자리가 없습니다.');
+  if(s.mods.some((x,i)=>i!==position&&groupsOf(allRealMods[x.id]||abyssMods[x.id]).some(g=>groupsOf(mod).includes(g))))
+    return fail(state,'영혼의 우물','이미 공개된 속성과 그룹이 겹칩니다. 다른 선택지를 선택하세요.');
+  const shown=mod.effect.replace(/\((-?\d+)[-—](-?\d+)\)/g,(_whole,a,b)=>
+    String(Number(a)+Math.floor(rng()*(Number(b)-Number(a)+1))));
+  s.mods[position]={id:mod.id,fractured:false,desecrated:true,unrevealed:false,
+    valueText:shown,kind:mod.kind};
+  entry.revealed=true;entry.offers=[];
+  const next=entries.find(d=>!d.revealed);
+  if(next){
+    const candidates=next.allowedIds.map(id=>allRealMods[id]||abyssMods[id]).filter(m=>m&&
+      !s.mods.some(x=>groupsOf(allRealMods[x.id]||abyssMods[x.id]).some(g=>groupsOf(m).includes(g))));
+    next.offers=pickOffers(candidates,rng);
+  }
+  s.log.push({order:s.log.length+1,action:'영혼의 우물',success:true,detail:'공개: '+shown,
+    stateAfter:{rarity:s.rarity,mods:clone(s.mods)}});
+  s.notice=`훼손 속성 공개: ${shown} (남은 수 ${entries.filter(d=>!d.revealed).length})`;
+  return {state:s,ok:true};
+}
 export function rerollDesecration(state,rng=Math.random){
-  const d=state.desecration,name='심연의 메아리의 징조';
+  const d=state.desecrations?.find(x=>!x.revealed)||state.desecration,name='심연의 메아리의 징조';
   if(!d || d.revealed)return fail(state,name,'다시 추첨할 미공개 속성이 없습니다.');
   if(d.rerolled)return fail(state,name,'이 훼손 속성은 이미 한 번 다시 추첨했습니다.');
   if(state.omenId!=='omen-of-abyssal-echoes')
     return fail(state,name,'먼저 심연의 메아리의 징조를 활성화하세요.');
   const pool=d.allowedIds.map(id=>abyssMods[id]||allRealMods[id]).filter(Boolean);
   if(pool.length<3)return fail(state,name,'다시 추첨할 후보가 부족합니다.');
-  const s=clone(state);s.desecration={...d,offers:pickOffers(pool,rng),rerolled:true};
+  const s=clone(state);
+  if(s.desecrations?.some(x=>!x.revealed)){
+    const active=s.desecrations.find(x=>!x.revealed);
+    active.offers=pickOffers(pool,rng);active.rerolled=true;
+  }else s.desecration={...d,offers:pickOffers(pool,rng),rerolled:true};
   s.usage[s.omenId]=(s.usage[s.omenId]||0)+1;s.omenId=null;
   s.log.push({order:s.log.length+1,action:name,success:true,detail:'훼손 공개 후보 세 가지 다시 추첨',omen:name});
   s.notice='훼손 공개 후보를 다시 추첨했습니다.';return {state:s,ok:true};

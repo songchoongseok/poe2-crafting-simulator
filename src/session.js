@@ -1,5 +1,6 @@
 import { makeInitial, validateStart, modById, orbById, omenById, setGoals } from './engine.js';
-import { boneById,abyssMods } from './abyss.js';
+import { boneById,abyssMods,hiddenMods } from './abyss.js';
+import { essenceById } from './essences.js';
 export const SESSION_VERSION = 1;
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const counter = n => Number.isSafeInteger(n) && n >= 0 && n <= 100000000;
@@ -26,6 +27,13 @@ function restoreDesecration(d){
   return {boneId:d.boneId,kind:d.kind,offers:[...d.offers],
     allowedIds:[...d.allowedIds],revealed:d.revealed,rerolled:d.rerolled};
 }
+function restoreBatch(list){
+  if(list===undefined||list===null)return null;
+  if(!Array.isArray(list)||list.length>6||list.some(d=>!object(d)||
+    !Object.hasOwn(hiddenMods,d.slotId)||!d.slotId.match(/^abyss:hidden:(prefix|suffix):[1-3]$/)))
+    throw Error('다중 훼손 정보가 잘못됐습니다.');
+  return list.map(d=>({slotId:d.slotId,...restoreDesecration(d)}));
+}
 export function serializeSession(state) {
   return JSON.stringify({schema:'poe2-craft-session',version:SESSION_VERSION,mode:'UNVERIFIED_DEMO',state},null,2);
 }
@@ -36,15 +44,19 @@ export function parseSession(text) {
   const raw=payload.state;
   if (!Array.isArray(raw.mods)||raw.mods.length>6||raw.mods.some(invalidMod)) throw Error('잘못된 속성 목록입니다.');
   const state={...makeInitial(),baseId:raw.baseId,itemLevel:raw.itemLevel,rarity:raw.rarity,
-    mods:raw.mods.map(restoreMod),goals:[],desecration:restoreDesecration(raw.desecration),corrupted:Boolean(raw.corrupted),
+    mods:raw.mods.map(restoreMod),goals:[],desecration:restoreDesecration(raw.desecration),
+    desecrations:restoreBatch(raw.desecrations),corrupted:Boolean(raw.corrupted),
+    destroyed:Boolean(raw.destroyed),unique:Boolean(raw.unique),sanctified:Boolean(raw.sanctified),
+    vaalImplicit:Boolean(raw.vaalImplicit),implicitRoll:typeof raw.implicitRoll==='number'?raw.implicitRoll:null,
+    catalystType:raw.catalystType??null,catalystQuality:raw.catalystQuality??0,
     omenId:raw.omenId,locked:raw.locked,attempts:raw.attempts,notice:'세션을 불러왔습니다.'};
   const invalid=validateStart(state); if(invalid)throw Error(invalid);
   if (state.omenId!==null&&!Object.hasOwn(omenById,state.omenId))throw Error('잘못된 징조입니다.');
   if(typeof state.locked!=='boolean'||!counter(state.attempts))throw Error('제작 진행 상태가 잘못됐습니다.');
-  if(!object(raw.usage)||Object.entries(raw.usage).some(([id,n])=>!(Object.hasOwn(orbById,id)||Object.hasOwn(omenById,id)||Object.hasOwn(boneById,id))||!counter(n)))throw Error('사용량이 잘못됐습니다.');
+  if(!object(raw.usage)||Object.entries(raw.usage).some(([id,n])=>!(Object.hasOwn(orbById,id)||Object.hasOwn(omenById,id)||Object.hasOwn(boneById,id)||Object.hasOwn(essenceById,id))||!counter(n)))throw Error('사용량이 잘못됐습니다.');
   if(!Array.isArray(raw.log)||raw.log.length>10000||raw.log.some(e=>!object(e)||!counter(e.order)||typeof e.success!=='boolean'||typeof e.action!=='string'||e.action.length>100||typeof e.detail!=='string'||e.detail.length>1000||
       (e.omen!=null&&(typeof e.omen!=='string'||e.omen.length>100))||
-      (e.stateAfter!==undefined&&(!object(e.stateAfter)||!['normal','magic','rare'].includes(e.stateAfter.rarity)||!Array.isArray(e.stateAfter.mods)||e.stateAfter.mods.length>6||e.stateAfter.mods.some(invalidMod))))) throw Error('제작 로그가 잘못됐습니다.');
+      (e.stateAfter!==undefined&&(!object(e.stateAfter)||!['normal','magic','rare','unique'].includes(e.stateAfter.rarity)||!Array.isArray(e.stateAfter.mods)||e.stateAfter.mods.length>6||e.stateAfter.mods.some(invalidMod))))) throw Error('제작 로그가 잘못됐습니다.');
   state.usage=Object.fromEntries(Object.entries(raw.usage));
   state.log=raw.log.map(e=>({order:e.order,success:e.success,action:e.action,detail:e.detail,
     ...(Object.hasOwn(e,'omen')?{omen:e.omen}:{}),

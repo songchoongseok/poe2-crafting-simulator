@@ -1,6 +1,7 @@
 import { omenCatalogue } from './omen-catalogue.js';
 import { abyssMaterials } from './abyss-catalogue.js';
 import { koreanBaseNames } from './kr-base-names.js';
+import { currencies } from './currencies.js';
 // DEMO DATA ONLY. These are NOT verified official POE2 mod weights or recipes.
 // Never relabel a demonstration probability as an in-game probability.
 import { armourBases } from './pob2-armour.js';
@@ -38,16 +39,22 @@ export const modifiers = [
   { id: 'dex23', kind: 'suffix', group: 'dex', tier: 'T3', level: 1, name: '민첩 +23' }
 ];
 
-export const orbs = [
-  { id: 'transmute', name: '진화의 오브' },
-  { id: 'augment', name: '확장의 오브' },
-  { id: 'regal', name: '제왕의 오브' },
-  { id: 'exalt', name: '엑잘티드 오브' },
-  { id: 'chaos', name: '카오스 오브' },
-  { id: 'annul', name: '소멸의 오브' }
-];
+export const orbs = currencies;
 
 const extraOmenEffects={
+  'omen-of-sinistral-alchemy':{orbId:'alchemy',effectId:'alchemyPrefix'},
+  'omen-of-dextral-alchemy':{orbId:'alchemy',effectId:'alchemySuffix'},
+  'omen-of-corruption':{orbId:'vaal',effectId:'alwaysChange'},
+  'omen-of-homogenising-exaltation':{orbId:'exalt',effectId:'homogenise'},
+  'omen-of-homogenising-coronation':{orbId:'regal',effectId:'homogenise'},
+  'omen-of-chance':{orbId:'chance',effectId:'protectChance'},
+  'omen-of-the-ancients':{orbId:'chance',effectId:'guaranteeUnique'},
+  'omen-of-sanctification':{orbId:'divine',effectId:'sanctify'},
+  'omen-of-the-blessed':{orbId:'divine',effectId:'divineImplicit'},
+  'omen-of-putrefaction':{effectId:'putrefaction'},
+  'omen-of-catalysing-exaltation':{orbId:'exalt',effectId:'catalyse'},
+  'omen-of-sinistral-crystallisation':{effectId:'essencePrefix'},
+  'omen-of-dextral-crystallisation':{effectId:'essenceSuffix'},
   'omen-of-sinistral-erasure':{orbId:'chaos',kind:'prefix'},
   'omen-of-dextral-erasure':{orbId:'chaos',kind:'suffix'},
   'omen-of-whittling':{orbId:'chaos',effectId:'lowestLevel'},
@@ -65,4 +72,4 @@ export const omens=omenCatalogue.map(o=>extraOmenEffects[o.id]
   ?{...o,...extraOmenEffects[o.id],implemented:true}:o);
 export const abyssCraftingMaterials = abyssMaterials;
 
-export const DEMO_NOTICE = 'POE2 한국어 베이스·일반 속성 데이터 사용. 등장 가중치는 미검증이므로 균등 추첨하며, 심연 뼈 훼손/영혼의 우물과 일부 징조 효과를 구현했습니다. 등장 가중치는 아직 임시 균등 추첨입니다.';
+export const DEMO_NOTICE = 'POE2 한국어 일반 속성·PoE2DB 에센스/오브 데이터 사용. 속성 가중치와 일부 특수 결과는 아직 미검증입니다. 일반 장비 제작용 징조 31종의 조건·소모를 연결했지만, 실제 게임과 동일한 확률 또는 완전한 고유/바알 결과를 보장하지 않습니다.';

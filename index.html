@@ -21,9 +21,12 @@
       <label for="base">베이스 아이템</label><select id="base"></select>
       <div id="base-count" class="hint"></div>
       <p class="subtle">게임 한국어 데이터로 아이템명을 표시합니다. 확인되지 않은 이름은 원문 그대로 유지합니다.</p>
-      <label for="rarity">등급</label><select id="rarity"><option value="normal">일반</option><option value="magic">마법</option><option value="rare">희귀</option></select>
+      <label for="rarity">등급</label><select id="rarity"><option value="normal">일반</option><option value="magic">마법</option><option value="rare">희귀</option><option value="unique" hidden>고유</option></select>
       <label for="level">아이템 레벨 · 베이스 선택 시 자동 설정</label><input id="level" type="number" value="80" readonly aria-readonly="true">
       <p class="subtle">베이스의 장착 요구 레벨과 실제 드롭 아이템 레벨은 다릅니다. 지금은 화면 시연을 위해 장착 요구 레벨로 아이템 레벨을 고정합니다.</p>
+      <h3>기폭제 퀄리티 (반지·목걸이)</h3>
+      <label for="catalyst-type">기폭제 종류</label><select id="catalyst-type"></select>
+      <label for="catalyst-quality">현재 퀄리티 (0~20%)</label><input id="catalyst-quality" type="number" min="0" max="20" value="0">
       <h3>기존 속성 설정</h3>
       <p class="subtle">옵션 계열과 티어를 선택하세요. 초기 옵션은 재료 사용량에 포함되지 않습니다.</p>
       <label for="mod-family">옵션 선택</label><select id="mod-family"></select>
@@ -53,6 +56,10 @@
       </div>
       <h2>③ 제작 도구함 <small>클릭 즉시 사용</small></h2>
       <div id="orb-buttons" class="tools"></div>
+      <h3>에센스 <small>장비별 확정 속성 적용</small></h3>
+      <label for="essence-select">에센스 선택</label><select id="essence-select"></select>
+      <p id="essence-description" class="subtle"></p>
+      <button id="essence-apply" type="button" class="secondary full">선택한 에센스 즉시 사용</button>
       <h3>징조 <small>활성화 후 대상 오브 사용 시 소모</small></h3>
       <div id="omen-buttons" class="tools omens"></div>
       <label for="omen-select">전체 징조 목록 (한국어)</label><select id="omen-select"></select>
