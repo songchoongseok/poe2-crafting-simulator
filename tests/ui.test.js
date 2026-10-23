@@ -33,3 +33,19 @@ test('UI: 브라우저 모듈과 데이터 모듈 모두 문법 검사를 통과
   assert.equal(result.status,0,file+': '+(result.stderr||result.stdout));
  }
 });
+
+test('등급별 테두리 색상이 아이템 데이터 등급과 연결돼 있다',()=>{
+  assert.match(html,/id="item-card"[^>]*data-rarity="normal"/);
+  assert.match(app,/\$\('#item-card'\)\.dataset\.rarity=state\.rarity/);
+  for(const rarity of ['normal','magic','rare']){
+    assert.match(css,new RegExp('\\.item-card\\[data-rarity="'+rarity+'"\\]\\{border:3px'));
+  }
+});
+test('심연 재료 클릭, 훼손 세 가지 중 선택, 징조 재추첨 동작이 버튼에 연결된다',()=>{
+  for(const id of ['abyss-apply','abyss-reveal','abyss-reroll']){
+    assert.match(html,new RegExp('id="'+id+'"'));
+  }
+  for(const method of ['applyBone\(','revealDesecration\(','rerollDesecration\(']){
+    assert.ok(app.includes(method.replace('\\','')),method+' function must be called');
+  }
+});
