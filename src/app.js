@@ -229,7 +229,7 @@ function render() {
   const awaiting=Boolean(d&&!d.revealed&&d.offers?.length);
   $('#abyss-reveal').innerHTML=awaiting
     ? '<strong>영혼의 우물 · 훼손 옵션 선택</strong><p>세 가지 중 하나를 선택해 훼손 속성을 공개합니다.</p>'+
-      d.offers.map((id,i)=>`<button type="button" data-reveal="${escapeHTML(id)}">${i+1}. ${escapeHTML(abyssMods[id]?.effect||'알 수 없는 속성')}</button>`).join('')
+      d.offers.map((id,i)=>`<button type="button" data-reveal="${escapeHTML(id)}">${i+1}. ${escapeHTML(modById[id]?.effect||'알 수 없는 속성')}</button>`).join('')
     : '';
   $('#abyss-reroll').hidden=!awaiting||d.rerolled;
   $('#abyss-reroll').disabled=state.omenId!=='omen-of-abyssal-echoes';
