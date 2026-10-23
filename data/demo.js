@@ -1,3 +1,5 @@
+import { omenCatalogue } from './omen-catalogue.js';
+import { abyssMaterials } from './abyss-catalogue.js';
 import { koreanBaseNames } from './kr-base-names.js';
 // DEMO DATA ONLY. These are NOT verified official POE2 mod weights or recipes.
 // Never relabel a demonstration probability as an in-game probability.
@@ -45,9 +47,7 @@ export const orbs = [
   { id: 'annul', name: '소멸의 오브' }
 ];
 
-export const omens = [
-  { id: 'left_annul', name: '좌측 소멸의 징조', orbId: 'annul', kind: 'prefix' },
-  { id: 'right_annul', name: '우측 소멸의 징조', orbId: 'annul', kind: 'suffix' }
-];
+export const omens = omenCatalogue;
+export const abyssCraftingMaterials = abyssMaterials;
 
-export const DEMO_NOTICE = '시연용 가상 속성·동일 가중치. 실제 POE2 등장 확률 및 모든 오브 규칙은 미검증입니다.';
+export const DEMO_NOTICE = 'POE2 한국어 베이스·일반 속성 데이터 사용. 등장 가중치는 미검증이므로 균등 추첨하며, 심연 재료와 일부 징조 효과는 미구현 상태입니다.';
