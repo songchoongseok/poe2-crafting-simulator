@@ -3,7 +3,8 @@ import { abyssPools2 } from '../data/abyss-pools-2.js';
 import { abyssPools3 } from '../data/abyss-pools-3.js';
 import { abyssPools4 } from '../data/abyss-pools-4.js';
 import { abyssCraftingMaterials } from '../data/demo.js';
-import { modClassOf, groupsOf } from './affixes.js';
+import { modClassOf, groupsOf, allRealMods } from './affixes.js';
+import { modifiers as legacyMods } from '../data/demo.js';
 
 const pools={...abyssPools1,...abyssPools2,...abyssPools3,...abyssPools4};
 export const boneById=Object.fromEntries(abyssCraftingMaterials.map(x=>[x.id,x]));
@@ -52,6 +53,7 @@ export function hasDesecration(mods){
 export function hiddenKind(mod){
   return mod.id===HIDDEN_PREFIX?'prefix':mod.id===HIDDEN_SUFFIX?'suffix':null;
 }
+const kindOf=m=>m.kind||hiddenKind(m)||abyssMods[m.id]?.kind||allRealMods[m.id]?.kind||legacyMods.find(x=>x.id===m.id)?.kind||null;
 const necromancy={ 'omen-of-sinistral-necromancy':'prefix','omen-of-dextral-necromancy':'suffix' };
 const factions={'omen-of-the-sovereign':'ulaman','omen-of-the-liege':'amanamu',
   'omen-of-the-blackblooded':'kurgal'};
@@ -86,7 +88,7 @@ export function applyBone(state,base,boneId,rng=Math.random){
     const def=abyssMods[x.id];return def&&groupsOf(def).some(g=>groupsOf(m).includes(g));
   }));
   const kinds=[...new Set(candidates.map(m=>m.kind))].filter(kind=>
-    state.mods.filter(m=>(m.id===HIDDEN_PREFIX?'prefix':m.id===HIDDEN_SUFFIX?'suffix':m.kind||null)===kind).length<3||
+    state.mods.filter(m=>kindOf(m)===kind).length<3||
     state.mods.length>=6);
   if(!kinds.length)return fail(state,material.name,'훼손 속성을 추가할 수 있는 자리가 없습니다.');
   const kind=sample(kinds,rng);
@@ -94,9 +96,9 @@ export function applyBone(state,base,boneId,rng=Math.random){
   if(pool.length<3)return fail(state,material.name,'공개할 훼손 속성 후보가 세 가지보다 적습니다.');
   const mods=clone(state.mods);
   let removed=null;
-  if(mods.filter(m=>m.kind||hiddenKind(m)===kind).length>=3){
+  if(mods.filter(m=>kindOf(m)===kind).length>=3){
     // When the relevant side is full, a removable mod on that same side must make room.
-    const valid=mods.filter(m=>!m.fractured&&!m.desecrated && (m.kind===kind||hiddenKind(m)===kind));
+    const valid=mods.filter(m=>!m.fractured&&!m.desecrated && kindOf(m)===kind);
     if(!valid.length)return fail(state,material.name,'해당 접두·접미 영역에 제거 가능한 속성이 없습니다.');
     removed=sample(valid,rng);mods.splice(mods.indexOf(removed),1);
   }
