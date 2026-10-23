@@ -20,11 +20,12 @@
       <label for="base-search">베이스 이름 검색</label><input id="base-search" type="search" placeholder="예: Daggerfoot, Iron Ring, 단검발">
       <label for="base">베이스 아이템</label><select id="base"></select>
       <div id="base-count" class="hint"></div>
-      <p class="subtle">PoB2 실제 베이스 목록입니다. 검증되지 않은 한국어 명칭은 영어 원문으로 표시합니다.</p>
+      <p class="subtle">게임 한국어 데이터로 아이템명을 표시합니다. 확인되지 않은 이름은 원문 그대로 유지합니다.</p>
       <label for="rarity">등급</label><select id="rarity"><option value="normal">일반</option><option value="magic">마법</option><option value="rare">희귀</option></select>
-      <label for="level">아이템 레벨</label><input id="level" type="number" min="1" max="100" value="82">
+      <label for="level">아이템 레벨 · 베이스 선택 시 자동 설정</label><input id="level" type="number" value="80" readonly aria-readonly="true">
+      <p class="subtle">베이스의 장착 요구 레벨과 실제 드롭 아이템 레벨은 다릅니다. 지금은 화면 시연을 위해 장착 요구 레벨로 아이템 레벨을 고정합니다.</p>
       <h3>기존 속성 설정</h3>
-      <p class="subtle">시작 상태에서 입력한 속성은 재료 사용량에 포함하지 않습니다. 현재 제작 시연은 회피/에너지 보호막 신발만 지원합니다.</p>
+      <p class="subtle">시작 상태에서 입력한 속성은 재료 사용량에 포함하지 않습니다. 모든 일반 장비 종류의 한글 속성 후보를 사용합니다. 확률은 아직 시연용입니다.</p>
       <select id="modifier"></select>
       <label class="inline"><input id="fractured" type="checkbox"> 분열된 속성으로 추가</label>
       <button id="add-mod" class="secondary full">+ 기존 속성 추가</button>
@@ -39,10 +40,10 @@
     <section class="panel center">
       <h2>② 현재 아이템</h2>
       <div class="item-card">
-        <div class="item-title"><strong id="item-name">단검발 신발</strong><span id="rarity-label" class="rarity">마법</span></div>
-        <p id="base-category-label" class="subtle"></p><p id="base-stats" class="subtle"></p><p id="craft-support-note" class="subtle"></p>
-        <div class="mod-section"><h3>접두어 <span id="prefix-count">0/1</span></h3><div id="prefix-list"></div></div>
-        <div class="mod-section"><h3>접미어 <span id="suffix-count">1/1</span></h3><div id="suffix-list"></div></div>
+        <div class="item-details"><div class="item-title"><strong id="item-name">단검발 신발</strong><span id="rarity-label" class="rarity">마법</span></div>
+        <p id="base-category-label" class="subtle"></p><p id="base-stats" class="subtle"></p><p id="craft-support-note" class="subtle"></p></div>
+        <div class="modifier-grid"><div class="mod-section"><h3>접두어 <span id="prefix-count">0/1</span></h3><div id="prefix-list"></div></div>
+        <div class="mod-section"><h3>접미어 <span id="suffix-count">1/1</span></h3><div id="suffix-list"></div></div></div>
       </div>
       <h2>③ 제작 도구함 <small>클릭 즉시 사용</small></h2>
       <div id="orb-buttons" class="tools"></div>
@@ -58,7 +59,7 @@
       <ol id="logs" class="logs"></ol>
     </section>
   </main>
-  <footer>시연 데이터와 균등한 임시 가중치만 사용합니다. 실제 POE2 확률이라고 해석하면 안 됩니다.</footer>
+  <footer>POE2 한국어 베이스와 일반 속성 후보 데이터 사용 · 정확한 가중치와 특수 제작 규칙은 아직 검증되지 않았습니다.</footer>
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>
