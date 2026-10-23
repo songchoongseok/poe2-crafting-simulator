@@ -1,5 +1,7 @@
 import { bases, modifiers, orbs, omens, DEMO_NOTICE } from '../data/demo.js';
-import { modById, omenById, baseById, SLOT_LIMITS, makeInitial, setInitial, applyOrb, toggleOmen } from './engine.js';
+import { modById, omenById, baseById, SLOT_LIMITS, makeInitial, setInitial, setGoals, goalProgress, applyOrb, toggleOmen } from './engine.js';
+
+import { parseSession, serializeSession } from './session.js';
 
 const $ = selector => document.querySelector(selector);
 let state = makeInitial();
@@ -11,6 +13,7 @@ function setup() {
   $('#disclaimer').textContent = DEMO_NOTICE;
   $('#base').innerHTML = bases.map(b => `<option value="${b.id}">${escapeHTML(b.name)}</option>`).join('');
   $('#modifier').innerHTML = modifiers.map(m => `<option value="${m.id}">${m.kind === 'prefix' ? '접두' : '접미'} · ${escapeHTML(m.name)} (${m.tier})</option>`).join('');
+  $('#goal-modifier').innerHTML = modifiers.map(m => `<option value="${m.id}">${m.kind === 'prefix' ? '접두' : '접미'} · ${escapeHTML(m.name)} (${m.tier})</option>`).join('');
   $('#orb-buttons').innerHTML = orbs.map(o => `<button data-orb="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   $('#omen-buttons').innerHTML = omens.map(o => `<button data-omen="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   $('#base').addEventListener('change', e => {
@@ -40,6 +43,32 @@ function setup() {
     const b = e.target.closest('button[data-omen]'); if (!b) return;
     state = toggleOmen(state, b.dataset.omen).state; render();
   });
+  $('#goal-add').addEventListener('click', () => {
+    const result = setGoals(state, [...(state.goals || []), $('#goal-modifier').value]);
+    if (result.ok) state = result.state; else showError(result.reason);
+    render();
+  });
+  $('#goal-list').addEventListener('click', e => {
+    const remove = e.target.closest('button[data-goal-remove]');
+    if (!remove) return;
+    const result = setGoals(state, state.goals.filter(id => id !== remove.dataset.goalRemove));
+    if (result.ok) state = result.state; else showError(result.reason);
+    render();
+  });
+  $('#export-session').addEventListener('click', () => {
+    const blob = new Blob([serializeSession(state)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'poe2-crafting-session.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  $('#import-session').addEventListener('click', () => $('#import-file').click());
+  $('#import-file').addEventListener('change', async e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try { state = parseSession(await file.text()); }
+    catch (err) { showError(err.message); }
+    e.target.value = ''; render();
+  });
   $('#reset').addEventListener('click', () => { state = makeInitial(); render(); });
   $('#prefix-list').addEventListener('click', deleteMod);
   $('#suffix-list').addEventListener('click', deleteMod);
@@ -66,6 +95,12 @@ function render() {
   $('#item-name').textContent = base.name;
   $('#base-stats').textContent = `아이템 레벨 ${state.itemLevel} · 회피 ${base.baseEvasion ?? '-'} · 에너지 보호막 ${base.baseES ?? '-'}`;
   $('#rarity-label').textContent = ({ normal:'일반', magic:'마법', rare:'희귀' })[state.rarity];
+  const progress = goalProgress(state);
+  $('#goal-progress').textContent = `달성 ${progress.achieved.length}/${progress.total}${progress.complete ? ' · 목표 완료' : ''}`;
+  $('#goal-list').innerHTML = (state.goals || []).map(id => {
+    const achieved = progress.achieved.includes(id);
+    return `<div class="goal-row"><span class="${achieved ? 'achieved' : ''}">${achieved ? '✓ ' : '○ '}${escapeHTML(modById[id].name)}</span><button type="button" class="secondary remove-mod" data-goal-remove="${escapeHTML(id)}" aria-label="목표 삭제">삭제</button></div>`;
+  }).join('') || '<p class="subtle">목표 속성을 추가해 주세요.</p>';
   $('#prefix-list').innerHTML = renderMods('prefix');
   $('#suffix-list').innerHTML = renderMods('suffix');
   $('#prefix-count').textContent = `${state.mods.filter(m => modById[m.id].kind === 'prefix').length}/${SLOT_LIMITS[state.rarity]}`;

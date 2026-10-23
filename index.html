@@ -8,7 +8,7 @@
 <body>
   <header class="top">
     <div><span class="eyebrow">OFFLINE PROTOTYPE • DEMO RULES</span><h1>POE2 제작 시뮬레이터</h1><p>오브 클릭 즉시 제작 · 제작 로그 · 누적 재료 소모</p></div>
-    <button id="reset" class="secondary">새 제작 시작</button>
+    <div class="top-actions"><button id="export-session" class="secondary">세션 저장</button><button id="import-session" class="secondary">세션 불러오기</button><input id="import-file" type="file" accept=".json,application/json" hidden><button id="reset" class="secondary">새 제작 시작</button></div>
   </header>
   <div id="disclaimer" class="warning"></div>
   <main class="layout">
@@ -25,8 +25,9 @@
       <div id="setup-hint" class="hint">첫 오브를 사용하면 시작 아이템 설정이 잠깁니다.</div>
       <hr>
       <h2>목표 속성</h2>
-      <p class="subtle">자동 제작은 후속 버전에서 구현합니다. 현재는 직접 오브를 클릭해 제작하세요.</p>
-      <div class="goal">이동 속도 35% · 최대 생명력 · 화염/냉기/번개 저항</div>
+      <p class="subtle">목표 속성을 직접 편집합니다. 목표 설정은 오브를 소모하지 않습니다.</p>
+      <div id="goal-progress" class="hint"></div><div id="goal-list" class="goal"></div>
+      <label for="goal-modifier">목표 옵션 선택</label><select id="goal-modifier"></select><button id="goal-add" class="secondary full">+ 목표 옵션 추가</button>
     </section>
 
     <section class="panel center">
