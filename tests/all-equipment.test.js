@@ -63,3 +63,8 @@ test('아이템 옵션 수치 텍스트와 시도 로그의 전후 상태가 세
  assert.deepEqual(restored.log,r.log);
  assert.equal(restored.usage.transmute,1);
 });
+
+test('일반 베이스마다 부여 가능한 속성 후보가 존재하는지 검증',()=>{
+ const uncovered=bases.filter(b=>b.id!=='custom_boots'&&modsForBase(b,100).length===0);
+ assert.equal(uncovered.length,0,'속성 후보가 없는 베이스 '+uncovered.length+'개: '+uncovered.slice(0,20).map(x=>x.id).join(', '));
+});
