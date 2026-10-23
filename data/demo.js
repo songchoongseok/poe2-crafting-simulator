@@ -47,7 +47,22 @@ export const orbs = [
   { id: 'annul', name: '소멸의 오브' }
 ];
 
-export const omens = omenCatalogue;
+const extraOmenEffects={
+  'omen-of-sinistral-erasure':{orbId:'chaos',kind:'prefix'},
+  'omen-of-dextral-erasure':{orbId:'chaos',kind:'suffix'},
+  'omen-of-whittling':{orbId:'chaos',effectId:'lowestLevel'},
+  'omen-of-greater-exaltation':{orbId:'exalt',effectId:'addTwo'},
+  'omen-of-greater-annulment':{orbId:'annul',effectId:'removeTwo'},
+  'omen-of-light':{orbId:'annul',effectId:'removeDesecrated'},
+  'omen-of-sinistral-necromancy':{effectId:'bonePrefix'},
+  'omen-of-dextral-necromancy':{effectId:'boneSuffix'},
+  'omen-of-abyssal-echoes':{effectId:'rerollReveal'},
+  'omen-of-the-sovereign':{effectId:'boneUlaman'},
+  'omen-of-the-liege':{effectId:'boneAmanamu'},
+  'omen-of-the-blackblooded':{effectId:'boneKurgal'}
+};
+export const omens=omenCatalogue.map(o=>extraOmenEffects[o.id]
+  ?{...o,...extraOmenEffects[o.id],implemented:true}:o);
 export const abyssCraftingMaterials = abyssMaterials;
 
-export const DEMO_NOTICE = 'POE2 한국어 베이스·일반 속성 데이터 사용. 등장 가중치는 미검증이므로 균등 추첨하며, 심연 재료와 일부 징조 효과는 미구현 상태입니다.';
+export const DEMO_NOTICE = 'POE2 한국어 베이스·일반 속성 데이터 사용. 등장 가중치는 미검증이므로 균등 추첨하며, 심연 뼈 훼손/영혼의 우물과 일부 징조 효과를 구현했습니다. 등장 가중치는 아직 임시 균등 추첨입니다.';
