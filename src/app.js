@@ -3,7 +3,8 @@ import { modById, omenById, baseById, SLOT_LIMITS, makeInitial, setInitial, setG
 
 import { parseSession, serializeSession } from './session.js';
 import { createBasePicker } from './base-picker.js';
-import { CATEGORY_LABELS, describeBase, supportsDemoCrafting } from './catalogue.js';
+import { CATEGORY_LABELS, describeBase } from './catalogue.js';
+import { modsForBase,modClassOf } from './affixes.js';
 
 const $ = selector => document.querySelector(selector);
 let state = makeInitial();
@@ -14,31 +15,26 @@ const showError = reason => { state = { ...state, notice: `사용 불가: ${reas
 
 function setup() {
   $('#disclaimer').textContent = DEMO_NOTICE;
-  $('#modifier').innerHTML = modifiers.map(m => `<option value="${m.id}">${m.kind === 'prefix' ? '접두' : '접미'} · ${escapeHTML(m.name)} (${m.tier})</option>`).join('');
-  $('#goal-modifier').innerHTML = modifiers.map(m => `<option value="${m.id}">${m.kind === 'prefix' ? '접두' : '접미'} · ${escapeHTML(m.name)} (${m.tier})</option>`).join('');
+  // Pools are populated for each newly selected equipment base in render().
   $('#orb-buttons').innerHTML = orbs.map(o => `<button data-orb="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   $('#omen-buttons').innerHTML = omens.map(o => `<button data-omen="${o.id}" type="button">${escapeHTML(o.name)}</button>`).join('');
   picker = createBasePicker(id => {
     const chosen = baseById[id];
-    const result = setInitial(state, {
-      baseId: id, mods: [],
-      goals: supportsDemoCrafting(chosen) ? state.goals : []
-    });
-    if (result.ok) {
-      state = { ...result.state, notice: `베이스 변경: ${chosen.name} · 기존 속성 초기화` };
-    } else { showError(result.reason); }
+    // Base switch always starts a new independent crafting session.
+    state = {
+      ...makeInitial(), baseId: id, itemLevel: Math.max(1,chosen.requiredLevel || 1),
+      rarity: 'normal', mods: [], goals: [], omenId: null,
+      notice: `새 제작 시작: ${chosen.name} · 이전 로그 및 재료 사용량 초기화`
+    };
     render();
-    return result.ok;
+    return true;
   });
   picker.sync(state.baseId);
   $('#rarity').addEventListener('change', e => {
     const result = setInitial(state, { rarity: e.target.value, mods: [] });
     if (result.ok) state = result.state; else showError(result.reason); render();
   });
-  $('#level').addEventListener('change', e => {
-    const result = setInitial(state, { itemLevel: Number(e.target.value), mods: [] });
-    if (result.ok) state = result.state; else showError(result.reason); render();
-  });
+
   $('#add-mod').addEventListener('click', () => {
     const newMod = { id: $('#modifier').value, fractured: $('#fractured').checked };
     const result = setInitial(state, { mods: [...state.mods, newMod] });
@@ -94,23 +90,41 @@ function deleteMod(e) {
   render();
 }
 function renderMods(kind) {
-  const list = state.mods.map((m, index) => ({ ...m, index, ...modById[m.id] })).filter(m => m.kind === kind);
-  const vacant = SLOT_LIMITS[state.rarity] - list.length;
-  return list.map(m => `<div class="mod-row"><div>${escapeHTML(m.name)} ${m.fractured ? '<span class="tag">◆ 분열</span>' : ''}</div><span class="tier">${escapeHTML(m.tier)}</span>${!state.locked ? `<button class="secondary remove-mod" data-remove="${m.index}">삭제</button>` : ''}</div>`).join('') + (vacant > 0 ? `<div class="empty">빈 ${kind === 'prefix' ? '접두어' : '접미어'} ${vacant}칸</div>` : '');
+  const selected=state.mods.map((m,index)=>({...m,index,definition:modById[m.id]}))
+    .filter(m=>m.definition?.kind===kind);
+  const available=SLOT_LIMITS[state.rarity];
+  // Three fixed slots for each prefix/suffix section, regardless of rarity.
+  return Array.from({length:3},(_,slot)=>{
+    const m=selected[slot];
+    if(!m) return `<div class="mod-row empty-slot ${slot>=available?'locked-slot':''}"><span>${slot>=available?'잠긴 칸':'빈 '+(kind==='prefix'?'접두어':'접미어')+' 칸'}</span></div>`;
+    const value=m.valueText||m.definition.effect||m.definition.name;
+    return `<div class="mod-row occupied-slot"><div class="mod-text" title="${escapeHTML(value)}"><span>${escapeHTML(value)}</span>${m.fractured?'<span class="tag">◆ 분열</span>':''}</div>
+      <span class="tier">T${escapeHTML(m.definition.levelGroup??m.definition.tier??'?')}</span>
+      ${!state.locked?`<button type="button" class="secondary remove-mod" data-remove="${m.index}">삭제</button>`:''}</div>`;
+  }).join('');
 }
+
 function render() {
   const base = baseById[state.baseId];
   $('#rarity').value = state.rarity; $('#level').value = state.itemLevel;
   picker.setLocked(state.locked);
-  ['#rarity','#level','#modifier','#fractured','#add-mod'].forEach(id => $(id).disabled = state.locked || (['#modifier','#fractured','#add-mod'].includes(id) && !supportsDemoCrafting(base)));
-  ['#goal-modifier','#goal-add'].forEach(id => $(id).disabled = !supportsDemoCrafting(base));
+  $('#rarity').disabled = state.locked;
+  const pool = modsForBase(base,state.itemLevel);
+  for (const [selector, selected] of [['#modifier',$('#modifier').value],['#goal-modifier',$('#goal-modifier').value]]) {
+    $(selector).innerHTML = pool.map(m => `<option value="${escapeHTML(m.id)}">${m.kind === 'prefix' ? '접두어' : '접미어'} · ${escapeHTML(m.effect)} (${escapeHTML(m.name)}, T${m.levelGroup})</option>`).join('');
+    if (pool.some(m=>m.id===selected)) $(selector).value=selected;
+    $(selector).disabled=!pool.length || (selector==='#modifier' && state.locked);
+  }
+  $('#fractured').disabled=state.locked || !pool.length;
+  $('#add-mod').disabled=state.locked || !pool.length;
+  $('#goal-add').disabled=!pool.length;
   $('#setup-hint').textContent = state.locked ? '제작 중: 시작 아이템 설정 잠김. 새 제작 시작을 누르면 초기화됩니다.' : '최초 오브 사용 시 설정이 잠깁니다.';
   $('#item-name').textContent = base.name;
   $('#base-category-label').textContent = `${base.group} / ${CATEGORY_LABELS[base.category] || base.category} / ${base.subType || '기본 유형'}`;
-  $('#base-stats').textContent = `아이템 레벨 ${state.itemLevel} · ${describeBase(base)}`;
-  $('#craft-support-note').textContent = supportsDemoCrafting(base)
-    ? '시연용 오브 동작 지원 · 속성 확률과 장비 조건은 아직 미검증'
-    : '베이스 탐색 가능 · 해당 장비의 실제 속성 풀이 미연동되어 오브 제작을 차단합니다.';
+  $('#base-stats').textContent = `시연 아이템 레벨 ${state.itemLevel} (자동 고정) · ${describeBase(base)}`;
+  $('#craft-support-note').textContent = pool.length
+    ? `한국어 일반 속성 후보 ${pool.length}종 · 등장 비율은 미검증, 현재 균등 추첨`
+    : '이 베이스에 사용 가능한 일반 속성 후보가 확인되지 않아 제작을 차단합니다.';
   $('#rarity-label').textContent = ({ normal:'일반', magic:'마법', rare:'희귀' })[state.rarity];
   const progress = goalProgress(state);
   $('#goal-progress').textContent = `달성 ${progress.achieved.length}/${progress.total}${progress.complete ? ' · 목표 완료' : ''}`;
