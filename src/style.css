@@ -36,3 +36,20 @@ input[type=search]{background:var(--raised);color:var(--text);border:1px solid v
 .mod-row .remove-mod{padding:3px 6px;flex:none}
 #level[readonly]{opacity:.8;cursor:not-allowed}
 @media(max-width:700px){.item-card{height:660px;min-height:660px;max-height:660px}}
+
+
+/* Crafting setup / near-item actions / grouped history */
+.craft-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.craft-heading h2{margin-bottom:6px}
+.craft-actions{display:flex;gap:8px;margin:6px 0 14px;align-items:stretch}
+.craft-actions button{flex:1;min-height:42px}
+.archive-list{display:flex;flex-direction:column;gap:8px}
+.archive-card,.archive-session{border:1px solid var(--stroke);border-radius:9px;padding:9px 11px;background:#182435}
+.archive-card summary,.archive-session summary{cursor:pointer;font-weight:650;display:list-item;font-size:13px}
+.archive-card summary span{color:var(--muted);float:right;font-size:11px}
+.archive-session{margin:8px 0 0;background:#121b29}
+.archive-usage{font-size:12px;color:#b8cbe7;margin:9px 0 3px;overflow-wrap:anywhere}
+.archive-session .logs{max-height:250px}
+#omen-description,#abyss-description{min-height:50px;border-left:2px solid var(--stroke);padding-left:9px;white-space:pre-line;line-height:1.5}
+.tools.omens{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:700px){.craft-actions button{font-size:12px}}
