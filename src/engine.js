@@ -9,7 +9,7 @@ export const SLOT_LIMITS = Object.freeze({ normal: 0, magic: 1, rare: 3 });
 export const clone = obj => JSON.parse(JSON.stringify(obj));
 export const makeInitial = () => ({
   baseId: 'daggerfoot', itemLevel: 82, rarity: 'magic',
-  mods: [{ id: 'fire42', fractured: false }], omenId: null,
+  mods: [{ id: 'fire42', fractured: false }], goals: ['movement35', 'life135', 'fire42', 'cold38', 'light41'], omenId: null,
   usage: {}, log: [], attempts: 0, locked: false, notice: '확장의 오브를 클릭해보세요.'
 });
 
@@ -132,6 +132,21 @@ export function toggleOmen(state, omenId) {
     detail: s.omenId ? '활성화(미소모)' : '활성화 해제' });
   s.notice = `${omenById[omenId].name}: ${s.omenId ? '활성화' : '해제'}`;
   return { state: s, ok: true };
+}
+
+export function setGoals(state, goalIds) {
+  if (!Array.isArray(goalIds) || goalIds.length > 6 ||
+    new Set(goalIds).size !== goalIds.length ||
+    goalIds.some(id => typeof id !== 'string' || !modById[id])) {
+    return { state, ok: false, reason: '목표 속성은 중복 없이 최대 6개까지 지정할 수 있습니다.' };
+  }
+  return { state: { ...state, goals: [...goalIds] }, ok: true };
+}
+
+export function goalProgress(state) {
+  const goals = state.goals || [];
+  const achieved = goals.filter(id => state.mods.some(m => m.id === id));
+  return { achieved, total: goals.length, complete: goals.length > 0 && achieved.length === goals.length };
 }
 
 export function setInitial(state, patch) {
