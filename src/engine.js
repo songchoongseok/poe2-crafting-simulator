@@ -88,6 +88,10 @@ export function applyOrb(state, orbId, rng = Math.random) {
   if(!modsForBase(baseById[state.baseId],state.itemLevel).length)
     return fail(state, orb.name, '이 베이스의 해당 아이템 레벨에 부여 가능한 속성을 확인하지 못했습니다.');
   const mods = clone(state.mods);
+  const activeOmen = omenById[state.omenId];
+  if(activeOmen && activeOmen.implemented && activeOmen.orbId === orbId && activeOmen.kind &&
+    !['prefix','suffix'].includes(activeOmen.kind))
+    return fail(state,orb.name,'징조 적용 조건이 불명확합니다.');
   let nextRarity = state.rarity;
   let added = null, removed = null, omenUsed = null;
   if (orbId === 'transmute') {
@@ -104,17 +108,25 @@ export function applyOrb(state, orbId, rng = Math.random) {
   } else if (orbId === 'regal') {
     if (nextRarity !== 'magic' || mods.length === 0) return fail(state, orb.name, '속성이 있는 마법 아이템에만 사용할 수 있습니다.');
     nextRarity = 'rare';
-    added = pick(candidateMods(mods, state.itemLevel, nextRarity, state.baseId), rng);
+    const regalOmen=activeOmen?.implemented && activeOmen.orbId==='regal' ? activeOmen : null;
+    const regalPool=candidateMods(mods, state.itemLevel, nextRarity, state.baseId)
+      .filter(m=>!regalOmen || m.kind===regalOmen.kind);
+    added=pick(regalPool,rng);
+    if(regalOmen && added)omenUsed=regalOmen.id;
     if (!added) return fail(state, orb.name, '추가 가능한 속성 후보가 없습니다.');
     mods.push({ id: added.id, fractured: false, valueText: rollAffixText(added,rng) });
   } else if (orbId === 'exalt') {
     if (nextRarity !== 'rare') return fail(state, orb.name, '이 시연에서는 희귀 아이템에만 사용할 수 있습니다.');
-    added = pick(candidateMods(mods, state.itemLevel, nextRarity, state.baseId), rng);
+    const exaltOmen=activeOmen?.implemented && activeOmen.orbId==='exalt' ? activeOmen : null;
+    const exaltPool=candidateMods(mods, state.itemLevel, nextRarity, state.baseId)
+      .filter(m=>!exaltOmen || m.kind===exaltOmen.kind);
+    added=pick(exaltPool,rng);
+    if(exaltOmen && added)omenUsed=exaltOmen.id;
     if (!added) return fail(state, orb.name, '빈자리 또는 추가 가능한 속성 후보가 없습니다.');
     mods.push({ id: added.id, fractured: false, valueText: rollAffixText(added,rng) });
   } else if (orbId === 'annul') {
     if (nextRarity === 'normal') return fail(state, orb.name, '제거할 속성이 없습니다.');
-    const active = omenById[state.omenId];
+    const active=activeOmen?.implemented && activeOmen.orbId==='annul'?activeOmen:null;
     const candidates = mods.filter(x => !x.fractured && (!active || active.kind === modById[x.id].kind));
     if (!candidates.length) return fail(state, orb.name, active ? '징조 조건에 맞는 제거 가능한 속성이 없습니다.' : '제거 가능한 속성이 없습니다.');
     removed = pick(candidates, rng);
@@ -137,7 +149,8 @@ export function applyOrb(state, orbId, rng = Math.random) {
 
 export function toggleOmen(state, omenId) {
   const s = clone(state);
-  if (!omenById[omenId]) return { state: s, ok: false };
+  if (!omenById[omenId]) return { state: s, ok: false, reason:'알 수 없는 징조입니다.' };
+  if (!omenById[omenId].implemented) return { state:s, ok:false, reason:'이 징조는 이름과 효과 설명만 제공하며 실제 제작 효과는 아직 미구현입니다.' };
   s.omenId = s.omenId === omenId ? null : omenId;
   s.log.push({ order: s.log.length + 1, action: omenById[omenId].name, success: true,
     detail: s.omenId ? '활성화(미소모)' : '활성화 해제' });
