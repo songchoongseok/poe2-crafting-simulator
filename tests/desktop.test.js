@@ -13,6 +13,8 @@ test('고객 배포에는 일렉트론 주 프로세스와 Windows 설치/무설
   assert.equal(manifest.main,'desktop/main.cjs');
   assert.equal(manifest.scripts.desktop,'electron .');
   assert.ok(manifest.scripts['dist:win'].includes('electron-builder'));
+  assert.ok(manifest.scripts['dist:win'].includes('--publish never'),
+    '고객용 실행 파일 빌드가 서명되지 않은 GitHub 릴리스를 자동 배포하면 안 됩니다.');
   assert.deepEqual(manifest.build.win.target.map(x=>x.target),['nsis','portable']);
   for(const f of ['desktop/**/*.cjs','index.html','src/**/*.js','data/**/*.js']){
     assert.ok(manifest.build.files.includes(f),f);
