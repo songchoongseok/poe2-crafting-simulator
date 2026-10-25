@@ -1,0 +1,46 @@
+name: Windows 데스크톱 패키지
+
+on:
+  push:
+    branches:
+      - feat/all-gear-korean-crafting
+    paths:
+      - '.github/workflows/build-windows.yml'
+      - 'desktop/**'
+      - 'src/**'
+      - 'data/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: 소스 내려받기
+        uses: actions/checkout@v4
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: 빌드 도구 설치
+        run: npm ci
+      - name: 제작 규칙 및 데스크톱 안전성 테스트
+        run: npm test
+      - name: Windows 설치형 및 무설치 실행형 생성
+        run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: 고객 배포용 파일 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: poe2-windows-setup-and-portable
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 30

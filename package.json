@@ -1,11 +1,50 @@
 {
   "name": "poe2-crafting-simulator",
-  "version": "0.1.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
-  "description": "POE2 crafting simulator: offline UI prototype with clearly labeled demo rules",
+  "main": "desktop/main.cjs",
+  "description": "POE2 Korean equipment crafting simulator for web and Windows desktop",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "dev": "node scripts/server.mjs"
+    "dev": "node scripts/server.mjs",
+    "desktop": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.16.1"
+  },
+  "build": {
+    "appId": "com.poe2craft.simulator",
+    "productName": "POE2 제작 시뮬레이터",
+    "asar": true,
+    "directories": { "output": "release" },
+    "files": [
+      "desktop/**/*.cjs",
+      "index.html",
+      "src/**/*.js",
+      "src/**/*.css",
+      "data/**/*.js",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "POE2-Crafting-Simulator-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "POE2-Crafting-Simulator-Portable-${version}.${ext}"
+    }
   }
 }
