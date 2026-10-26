@@ -1,4 +1,19 @@
 // Equipment-wide rules shared by the editor, currency actions and session validator.
+// PoE2DB Martial Weapons: axe, bow, claw, crossbow, dagger, flail,
+// mace, quarterstaff (our PoB2 Warstaff subtype), spear, sword, talisman.
+const meleeCategories=new Set(['axe','claw','dagger','flail','mace','spear','sword','talisman']);
+const rangedMartialCategories=new Set(['bow','crossbow']);
+export function isMeleeWeapon(base){
+  return !!base && (meleeCategories.has(base.category)||
+    (base.category==='staff'&&base.subType==='Warstaff'));
+}
+export function isMartialWeapon(base){
+  return isMeleeWeapon(base)||rangedMartialCategories.has(base?.category);
+}
+export function isCasterWeapon(base){
+  return !!base && (['wand','sceptre'].includes(base.category)||
+    (base.category==='staff'&&base.subType!=='Warstaff'));
+}
 export function slotLimits(base,rarity){
   if(rarity==='normal')return {prefix:0,suffix:0};
   if(rarity==='magic')return {prefix:1,suffix:1};

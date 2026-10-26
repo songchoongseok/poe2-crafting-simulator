@@ -2,9 +2,9 @@ import { bases, modifiers, orbs, omens } from '../data/demo.js';
 import { supportsDemoCrafting } from './catalogue.js';
 import { allRealMods, modsForBase, allowedMod, groupsOf, hasGroupConflict, rollAffixText } from './affixes.js';
 import { abyssMods, hiddenMods, hasDesecration } from './abyss.js';
-import { essenceById, essenceModFor, essenceMods } from './essences.js';
+import { essenceById, essenceModsFor, essenceMods } from './essences.js';
 import { catalysts } from '../data/catalysts.js';
-import { slotLimits,qualityCap,augmentSocketCap,approximateQualityGain } from './equipment-rules.js';
+import { slotLimits,qualityCap,augmentSocketCap,approximateQualityGain,isMartialWeapon,isCasterWeapon } from './equipment-rules.js';
 
 export const modById = { ...Object.fromEntries(modifiers.map(m => [m.id, m])), ...allRealMods,
   ...abyssMods,...hiddenMods,...essenceMods };
@@ -48,7 +48,7 @@ export function validateStart({ baseId, itemLevel, rarity, mods, catalystType=nu
     const fromEssence=Boolean(essenceMods[m.id]);
     if (!abyssal && !fromEssence && (legacy ? !supportsDemoCrafting(baseById[baseId]) : !allowedMod(baseById[baseId],m,itemLevel)))
       return `${m.name}: 해당 베이스에 부여할 수 없는 속성입니다.`;
-    if(fromEssence && essenceModFor(baseById[baseId],essenceById[m.essenceId])?.id!==m.id)
+    if(fromEssence && !essenceModsFor(baseById[baseId],essenceById[m.essenceId]).some(x=>x.id===m.id))
       return `${m.name}: 이 베이스에 맞는 에센스 속성이 아닙니다.`;
     if (keys.has(m.id) || groupsOf(m).some(g => groups.has(g)))
       return `속성 중복 또는 그룹 충돌: ${m.name}`;
@@ -154,8 +154,7 @@ export function applyOrb(state, orbId, rng = Math.random) {
   }else if(action==='quality'){
     const base=baseById[state.baseId];
     const valid=orb.qualityCategory==='armour'?base.group==='방어구':
-      orb.qualityCategory==='caster'?['wand','sceptre','staff'].includes(base.category):
-      base.group==='무기'&&!['wand','sceptre','staff'].includes(base.category);
+      orb.qualityCategory==='caster'?isCasterWeapon(base):isMartialWeapon(base);
     if(!valid)return fail(state,orb.name,'선택한 숫돌·식각기·고철을 사용할 수 없는 장비 종류입니다.');
     if((state.quality||0)>=20)return fail(state,orb.name,'화폐로 올릴 수 있는 퀄리티 상한 20%에 도달했습니다.');
     const next=Math.min(20,(state.quality||0)+approximateQualityGain(state.itemLevel));
@@ -348,8 +347,8 @@ export function applyEssence(state, essenceId, rng=Math.random){
   if(!state.locked)return fail(state,essence.name,'먼저 제작하기 버튼을 눌러주세요.');
   if(state.corrupted||state.destroyed||state.sanctified)return fail(state,essence.name,'타락·파괴·축성된 아이템에는 에센스를 사용할 수 없습니다.');
   const err=validateStart(state);if(err)return fail(state,essence.name,err);
-  const mod=essenceModFor(baseById[state.baseId],essence);
-  if(!mod)return fail(state,essence.name,'이 장비 종류에는 해당 에센스의 확정 속성이 없습니다. 다른 에센스나 베이스를 선택하세요.');
+  const possible=essenceModsFor(baseById[state.baseId],essence);
+  if(!possible.length)return fail(state,essence.name,'이 장비 종류에는 해당 에센스의 확정 속성이 없습니다. 다른 에센스나 베이스를 선택하세요.');
   const isReplacement=essence.action.includes('희귀 아이템에서');
   if(isReplacement&&state.rarity!=='rare')return fail(state,essence.name,'이 에센스는 희귀 장비에 사용합니다.');
   if(!isReplacement&&state.rarity!=='magic')return fail(state,essence.name,'이 에센스는 마법 장비를 희귀로 승급할 때 사용합니다.');
@@ -365,10 +364,11 @@ export function applyEssence(state, essenceId, rng=Math.random){
     if(!candidates.length)return fail(state,essence.name,'제거 조건에 맞는 비분열 속성이 없습니다.');
     removed=pick(candidates,rng);mods.splice(mods.indexOf(removed),1);
   }
-  if(mods.filter(x=>modById[x.id]?.kind===mod.kind).length>=slotLimits(baseById[state.baseId],'rare')[mod.kind])
-    return fail(state,essence.name,'확정 속성이 들어갈 '+(mod.kind==='prefix'?'접두어':'접미어')+' 자리가 없습니다.');
-  if(mods.some(x=>hasGroupConflict(modById[x.id],mod)))
-    return fail(state,essence.name,'기존 속성과 확정 속성이 충돌합니다. 충돌 속성을 제거한 뒤 사용하세요.');
+  const available=possible.filter(mod=>
+    mods.filter(x=>modById[x.id]?.kind===mod.kind).length<slotLimits(baseById[state.baseId],'rare')[mod.kind]&&
+    !mods.some(x=>hasGroupConflict(modById[x.id],mod)));
+  if(!available.length)return fail(state,essence.name,'확정 속성이 들어갈 빈 접두어·접미어 자리 또는 호환되는 속성 그룹이 없습니다.');
+  const mod=pick(available,rng);
   mods.push({id:mod.id,fractured:false,valueText:rollAffixText(mod,rng)});
   const changed=isReplacement?'속성 1개 교체':'희귀로 승급';
   return finish(state,{id:essence.id,name:essence.name},mods,'rare',
